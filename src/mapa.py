@@ -4,14 +4,14 @@ from pathlib import Path
 import geopandas as gpd
 
 
-def filtrar_capa_mapa(gdf, anio, incluir_cali=True):
+def _filtrar_capa_mapa(gdf, anio, incluir_cali=True):
     gdf_filtrado = gdf[gdf["año"] == anio].copy()
     if not incluir_cali:
         gdf_filtrado = gdf_filtrado[gdf_filtrado["MPIO_CNMBR"] != "CALI"]
     return gdf_filtrado
 
 
-def preparar_para_folium(gdf):
+def _preparar_para_folium(gdf):
     gdf_map = gdf.copy()
     if gdf_map.crs is not None:
         try:
@@ -22,31 +22,31 @@ def preparar_para_folium(gdf):
     return gdf_map
 
 
-def corregir_geometrias(gdf):
+def _corregir_geometrias(gdf):
     gdf_fix = gdf.copy()
     gdf_fix["geom"] = gdf_fix.geometry.buffer(0)
     return gdf_fix.set_geometry("geom")
 
 
-def preparar_dataset_mapa(gdf, anios):
+def _preparar_dataset_mapa(gdf, anios):
     datasets = {}
     for anio in anios:
         for incluir_cali in [True, False]:
             clave = f"{anio}_{'con_cali' if incluir_cali else 'sin_cali'}"
-            gdf_tmp = filtrar_capa_mapa(gdf, anio=anio, incluir_cali=incluir_cali)
+            gdf_tmp = _filtrar_capa_mapa(gdf, anio=anio, incluir_cali=incluir_cali)
             if gdf_tmp.empty:
                 continue
-            gdf_tmp = corregir_geometrias(gdf_tmp)
-            gdf_tmp = preparar_para_folium(gdf_tmp)
+            gdf_tmp = _corregir_geometrias(gdf_tmp)
+            gdf_tmp = _preparar_para_folium(gdf_tmp)
             if not gdf_tmp.empty:
                 datasets[clave] = json.loads(gdf_tmp.to_json())
     return datasets
 
 
 def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre="mapa_actual.html"):
-    datasets = preparar_dataset_mapa(gdf, anios_disponibles)
+    datasets = _preparar_dataset_mapa(gdf, anios_disponibles)
 
-    gdf_base = preparar_para_folium(corregir_geometrias(gdf.copy()))
+    gdf_base = _preparar_para_folium(_corregir_geometrias(gdf.copy()))
     minx, miny, maxx, maxy = gdf_base.total_bounds
     centro_lat = (miny + maxy) / 2
     centro_lon = (minx + maxx) / 2
