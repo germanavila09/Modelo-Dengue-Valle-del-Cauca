@@ -23,24 +23,24 @@ def main():
     casos_totales = gdf["conteo_dengue"].sum()
     nulos = gdf["conteo_dengue"].isna().sum()
 
-    print("\n── Resumen general ─────────────────────────")
+    print("\n-- Resumen general --------------------------")
     print(f"  Registros      : {len(gdf)}")
     print(f"  Municipios     : {gdf['MPIO_CNMBR'].nunique()}")
     print(f"  Años           : {anios[0]} – {anios[-1]}")
     print(f"  Casos totales  : {casos_totales:,.0f}")
     print(f"  Valores nulos  : {nulos}")
 
-    print("\n── Casos por año ───────────────────────────")
+    print("\n-- Casos por anno ---------------------------")
     por_anio = (
         gdf.groupby("año")["conteo_dengue"]
         .sum()
         .sort_index()
     )
     for anio, casos in por_anio.items():
-        barra = "█" * int(casos / por_anio.max() * 30)
+        barra = "#" * int(casos / por_anio.max() * 30)
         print(f"  {anio}  {barra} {casos:,.0f}")
 
-    print("\n── Top 5 municipios (carga histórica) ──────")
+    print("\n-- Top 5 municipios (carga historica) ------")
     pivot = construir_pivot(gdf)
     top5 = calcular_priorizacion(pivot).head(5)
     for _, row in top5.iterrows():
