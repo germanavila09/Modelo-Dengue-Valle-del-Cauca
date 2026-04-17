@@ -41,7 +41,14 @@ def _preparar_dataset_mapa(gdf, anios):
     return datasets
 
 
-def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre="mapa_actual.html"):
+def _preparar_heat_data(puntos_df):
+    heat_data = {}
+    for anio, grupo in puntos_df.groupby("anio"):
+        heat_data[str(anio)] = grupo[["lat", "lng"]].values.tolist()
+    return heat_data
+
+
+def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_df=None, nombre="mapa_actual.html"):
     datasets = _preparar_dataset_mapa(gdf, anios_disponibles)
 
     gdf_base = _preparar_para_folium(_corregir_geometrias(gdf.copy()))
@@ -51,6 +58,9 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
 
     datasets_json = json.dumps(datasets, ensure_ascii=False)
     anios_json = json.dumps(anios_disponibles, ensure_ascii=False)
+
+    heat_data = _preparar_heat_data(puntos_df) if puntos_df is not None else {}
+    heat_json = json.dumps(heat_data, ensure_ascii=False)
 
     html = f"""<!DOCTYPE html>
 <html lang="es">
@@ -74,6 +84,7 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
         }}
         #btnAplicarMapa {{ background: #2e7d32; color: white; border: none; cursor: pointer; }}
         #btnLimpiarMapa {{ background: #9e9e9e; color: white; border: none; cursor: pointer; }}
+        #btnCalor {{ background: #c0392b; color: white; border: none; cursor: pointer; margin-bottom: 10px; }}
         #resumenMapa {{
             margin-top: 10px; font-size: 12px; color: #222;
             background: #f7f7f7; padding: 8px; border-radius: 6px; line-height: 1.5;
@@ -107,16 +118,19 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
             <button id="btnAplicarMapa">Aplicar</button>
             <button id="btnLimpiarMapa">Limpiar</button>
         </div>
+        <button id="btnCalor">Mapa de calor: OFF</button>
         <div id="estadoMapa">Selecciona filtros.</div>
         <div id="resumenMapa">Sin resumen.</div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
     <script>
         const datasetsDengue = {datasets_json};
         const aniosDisponibles = {anios_json};
         const anioDefault = {anio_default};
         const centroInicial = [{centro_lat}, {centro_lon}];
         const zoomInicial = 7;
+        const heatData = {heat_json};
 
         const map = L.map('map', {{ zoomControl: true, preferCanvas: true }}).setView(centroInicial, zoomInicial);
 
@@ -128,6 +142,8 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
 
         let capaActual = null;
         let leyendaActual = null;
+        let capaCalor = null;
+        let calorActivo = false;
 
         function formatNumber(x) {{ return Number(x).toLocaleString('es-CO'); }}
 
@@ -280,9 +296,36 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
             actualizarMapaDengue();
         }}
 
-        document.getElementById('btnAplicarMapa').addEventListener('click', actualizarMapaDengue);
+        function actualizarCapaCalor() {{
+            const anio = document.getElementById('anioSelect').value;
+            if (capaCalor) {{ map.removeLayer(capaCalor); capaCalor = null; }}
+            if (!calorActivo) return;
+            const puntos = heatData[String(anio)];
+            if (!puntos || puntos.length === 0) return;
+            capaCalor = L.heatLayer(puntos, {{
+                radius: 18,
+                blur: 22,
+                maxZoom: 12,
+                gradient: {{ 0.2: '#ffffb2', 0.4: '#fecc5c', 0.6: '#fd8d3c', 0.8: '#f03b20', 1.0: '#bd0026' }}
+            }}).addTo(map);
+        }}
+
+        document.getElementById('btnCalor').addEventListener('click', function() {{
+            calorActivo = !calorActivo;
+            this.textContent = 'Mapa de calor: ' + (calorActivo ? 'ON' : 'OFF');
+            this.style.background = calorActivo ? '#2c3e50' : '#c0392b';
+            actualizarCapaCalor();
+        }});
+
+        document.getElementById('btnAplicarMapa').addEventListener('click', function() {{
+            actualizarMapaDengue();
+            actualizarCapaCalor();
+        }});
         document.getElementById('btnLimpiarMapa').addEventListener('click', limpiarMapa);
-        document.getElementById('anioSelect').addEventListener('change', actualizarMapaDengue);
+        document.getElementById('anioSelect').addEventListener('change', function() {{
+            actualizarMapaDengue();
+            actualizarCapaCalor();
+        }});
         document.getElementById('caliSelect').addEventListener('change', actualizarMapaDengue);
         document.getElementById('variableSelect').addEventListener('change', actualizarMapaDengue);
 

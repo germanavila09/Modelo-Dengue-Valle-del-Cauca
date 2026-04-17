@@ -1,4 +1,5 @@
 import geopandas as gpd
+import pandas as pd
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
@@ -35,3 +36,19 @@ def cargar_datos(engine=None):
     """
 
     return gpd.read_postgis(query, engine, geom_col="geom")
+
+
+def cargar_puntos_calor(engine=None):
+    if engine is None:
+        engine = crear_engine()
+
+    query = """
+    SELECT
+        "año"::text AS anio,
+        ROUND(ST_Y(geom)::numeric, 5) AS lat,
+        ROUND(ST_X(geom)::numeric, 5) AS lng
+    FROM public.dengue_m
+    WHERE geom IS NOT NULL;
+    """
+
+    return pd.read_sql(query, engine)

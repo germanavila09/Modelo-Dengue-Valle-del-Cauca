@@ -10,7 +10,7 @@ Uso desde Python:
 from pathlib import Path
 
 from .config import ANIO, MUNICIPIO, RUTA_SALIDA
-from .db import cargar_datos, crear_engine
+from .db import cargar_datos, cargar_puntos_calor, crear_engine
 from .mapa import generar_mapa_html
 from .transform import calcular_priorizacion, construir_pivot, limpiar_datos
 from .viz import (
@@ -58,8 +58,9 @@ def ejecutar(anio=None, municipio=None, ruta_salida=None):
         _guardar(fig_serie, ruta_graficas / f"serie_{municipio.lower()}.png")
 
     # 4. Mapa HTML
-    print("[4/5] Generando mapa HTML interactivo...")
-    ruta_mapa = generar_mapa_html(gdf, anios, ruta_salida, anio_default=anio)
+    print("[4/5] Generando mapa HTML interactivo (cargando puntos de calor)...")
+    puntos_df = cargar_puntos_calor(engine)
+    ruta_mapa = generar_mapa_html(gdf, anios, ruta_salida, anio_default=anio, puntos_df=puntos_df)
 
     # 5. Resumen
     print("[5/5] Resumen:")

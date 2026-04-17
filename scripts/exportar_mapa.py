@@ -14,7 +14,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from src.config import ANIO, RUTA_SALIDA
-from src.db import cargar_datos, crear_engine
+from src.db import cargar_datos, cargar_puntos_calor, crear_engine
 from src.mapa import generar_mapa_html
 from src.transform import limpiar_datos
 
@@ -37,8 +37,11 @@ def main():
         print(f"ERROR: año {anio_default} no disponible. Anos validos: {anios_disponibles}")
         sys.exit(1)
 
+    print(f"Cargando puntos de calor...")
+    puntos_df = cargar_puntos_calor(engine)
+
     print(f"Generando mapa para {anio_default}...")
-    ruta = generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default=anio_default)
+    ruta = generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default=anio_default, puntos_df=puntos_df)
     print(f"Mapa guardado en: {ruta}")
 
 
