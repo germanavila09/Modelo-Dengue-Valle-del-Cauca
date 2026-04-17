@@ -142,6 +142,7 @@ Lee todas las variables desde `.env` y las expone como constantes (`DB_CONFIG`, 
 ### `db.py`
 - `crear_engine()` — crea la conexión SQLAlchemy a PostgreSQL
 - `cargar_datos(engine)` — carga `MPIO_CCDGO`, `MPIO_CNMBR`, `año`, `población`, `conteo_dengue`, `incidencia_dengue`, `geom`
+- `cargar_puntos_calor(engine)` — carga lat/lng/mpio_ccdgo de `public.dengue_m` (166 k casos puntuales)
 
 ### `transform.py`
 - `limpiar_datos(gdf)` — normaliza tipos y codificación
@@ -159,7 +160,14 @@ Lee todas las variables desde `.env` y las expone como constantes (`DB_CONFIG`, 
 - `graficar_serie_municipio(pivot, municipio)` — serie temporal de un municipio
 
 ### `mapa.py`
-- `generar_mapa_html(gdf, anios, ruta_salida, anio_default)` — genera HTML autocontenido con mapa Leaflet (capa base CartoDB Light), leyenda dinámica, toggle casos/incidencia, filtro Con/Sin Cali, y popup con nivel de riesgo
+- `generar_mapa_html(gdf, anios, ruta_salida, anio_default, puntos_df)` — genera HTML autocontenido con mapa Leaflet. Incluye:
+  - Capa base CartoDB Light
+  - **Modo coroplético** — municipios coloreados por variable seleccionada
+  - **Modo mapa de calor** — 166 k casos puntuales con `leaflet.heat`
+  - **Modo cluster** — agrupación de casos con `Leaflet.markercluster`
+  - Los tres modos son exclusivos entre sí
+  - Filtros: año, variable (casos/incidencia), Con/Sin Cali
+  - Popup con nivel de riesgo, población, % del total
 
 ### `pipeline.py`
 - `ejecutar(anio, municipio, ruta_salida)` — orquesta carga → pivot → gráficas → mapa → resumen

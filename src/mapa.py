@@ -72,6 +72,8 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
     <title>Mapa dengue Valle del Cauca</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"/>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"/>
     <style>
         html, body {{ width: 100%; height: 100%; margin: 0; padding: 0; font-family: Arial, sans-serif; }}
         #map {{ width: 100%; height: 100vh; background: #eef2f5; }}
@@ -87,7 +89,8 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
         }}
         #btnAplicarMapa {{ background: #2e7d32; color: white; border: none; cursor: pointer; }}
         #btnLimpiarMapa {{ background: #9e9e9e; color: white; border: none; cursor: pointer; }}
-        #btnCalor {{ background: #c0392b; color: white; border: none; cursor: pointer; margin-bottom: 10px; }}
+        #btnCalor   {{ background: #c0392b; color: white; border: none; cursor: pointer; margin-bottom: 6px; }}
+        #btnCluster {{ background: #1565c0; color: white; border: none; cursor: pointer; margin-bottom: 10px; }}
         #resumenMapa {{
             margin-top: 10px; font-size: 12px; color: #222;
             background: #f7f7f7; padding: 8px; border-radius: 6px; line-height: 1.5;
@@ -122,11 +125,13 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
             <button id="btnLimpiarMapa">Limpiar</button>
         </div>
         <button id="btnCalor">Mapa de calor: OFF</button>
+        <button id="btnCluster">Mapa de cluster: OFF</button>
         <div id="estadoMapa">Selecciona filtros.</div>
         <div id="resumenMapa">Sin resumen.</div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
     <script>
         const datasetsDengue = {datasets_json};
         const aniosDisponibles = {anios_json};
@@ -146,7 +151,8 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
         let capaActual = null;
         let leyendaActual = null;
         let capaCalor = null;
-        let calorActivo = false;
+        let capaCluster = null;
+        let modoActivo = 'coropletico'; // 'coropletico' | 'calor' | 'cluster'
 
         function formatNumber(x) {{ return Number(x).toLocaleString('es-CO'); }}
 
@@ -214,11 +220,11 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
 
             capaActual = L.geoJSON(data, {{
                 style: feature => ({{
-                    fillColor: calorActivo ? 'transparent' : getColor(feature.properties[variable], bins),
-                    weight: calorActivo ? 1.5 : 1,
+                    fillColor: modoActivo !== 'coropletico' ? 'transparent' : getColor(feature.properties[variable], bins),
+                    weight: modoActivo !== 'coropletico' ? 1.5 : 1,
                     opacity: 1,
-                    color: calorActivo ? '#555' : 'black',
-                    fillOpacity: calorActivo ? 0 : 0.75
+                    color: modoActivo !== 'coropletico' ? '#555' : 'black',
+                    fillOpacity: modoActivo !== 'coropletico' ? 0 : 0.75
                 }}),
                 onEachFeature: (feature, layer) => {{
                     const p = feature.properties || {{}};
@@ -299,59 +305,92 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
             document.getElementById('anioSelect').value = String(anioDefault);
             document.getElementById('caliSelect').value = 'sin_cali';
             document.getElementById('variableSelect').value = 'conteo_dengue';
+            cambiarModo('coropletico');
             actualizarMapaDengue();
         }}
 
-        function actualizarCapaCalor() {{
+        function limpiarCapasPuntos() {{
+            if (capaCalor)   {{ map.removeLayer(capaCalor);   capaCalor   = null; }}
+            if (capaCluster) {{ map.removeLayer(capaCluster); capaCluster = null; }}
+        }}
+
+        function aplicarEstiloCoropletico() {{
+            if (!capaActual) return;
+            const soloContornos = modoActivo !== 'coropletico';
+            const variable = document.getElementById('variableSelect').value;
+            const data = capaActual.toGeoJSON();
+            const bins = calcularBins(data.features.map(f => f.properties[variable]));
+            capaActual.setStyle(feature => ({{
+                fillColor: soloContornos ? 'transparent' : getColor(feature.properties[variable], bins),
+                weight: soloContornos ? 1.5 : 1,
+                opacity: 1,
+                color: soloContornos ? '#555' : 'black',
+                fillOpacity: soloContornos ? 0 : 0.75
+            }}));
+        }}
+
+        function activarCalor() {{
             const anio = document.getElementById('anioSelect').value;
             const cali = document.getElementById('caliSelect').value;
-            if (capaCalor) {{ map.removeLayer(capaCalor); capaCalor = null; }}
-            if (!calorActivo) return;
             const puntos = heatData[anio + '_' + cali];
             if (!puntos || puntos.length === 0) return;
             capaCalor = L.heatLayer(puntos, {{
-                radius: 18,
-                blur: 22,
-                maxZoom: 12,
+                radius: 18, blur: 22, maxZoom: 12,
                 gradient: {{ 0.2: '#ffffb2', 0.4: '#fecc5c', 0.6: '#fd8d3c', 0.8: '#f03b20', 1.0: '#bd0026' }}
             }}).addTo(map);
         }}
 
-        function refrescarEstiloCoropletico() {{
-            if (!capaActual) return;
-            const variable = document.getElementById('variableSelect').value;
-            const data = capaActual.toGeoJSON();
-            const valores = data.features.map(f => f.properties[variable]);
-            const bins = calcularBins(valores);
-            capaActual.setStyle(feature => ({{
-                fillColor: calorActivo ? 'transparent' : getColor(feature.properties[variable], bins),
-                weight: calorActivo ? 1.5 : 1,
-                opacity: 1,
-                color: calorActivo ? '#555' : 'black',
-                fillOpacity: calorActivo ? 0 : 0.75
-            }}));
+        function activarCluster() {{
+            const anio = document.getElementById('anioSelect').value;
+            const cali = document.getElementById('caliSelect').value;
+            const puntos = heatData[anio + '_' + cali];
+            if (!puntos || puntos.length === 0) return;
+            capaCluster = L.markerClusterGroup({{
+                maxClusterRadius: 40, spiderfyOnMaxZoom: true,
+                showCoverageOnHover: false, chunkedLoading: true
+            }});
+            puntos.forEach(p => L.circleMarker([p[0], p[1]], {{
+                radius: 4, fillColor: '#c0392b', color: '#922b21',
+                weight: 0.5, fillOpacity: 0.8
+            }}).addTo(capaCluster));
+            capaCluster.addTo(map);
+        }}
+
+        function cambiarModo(nuevoModo) {{
+            limpiarCapasPuntos();
+            modoActivo = nuevoModo;
+            aplicarEstiloCoropletico();
+            if (modoActivo === 'calor')   activarCalor();
+            if (modoActivo === 'cluster') activarCluster();
+
+            const btnCalor   = document.getElementById('btnCalor');
+            const btnCluster = document.getElementById('btnCluster');
+            btnCalor.textContent   = 'Mapa de calor: '   + (modoActivo === 'calor'   ? 'ON' : 'OFF');
+            btnCluster.textContent = 'Mapa de cluster: ' + (modoActivo === 'cluster' ? 'ON' : 'OFF');
+            btnCalor.style.background   = modoActivo === 'calor'   ? '#2c3e50' : '#c0392b';
+            btnCluster.style.background = modoActivo === 'cluster' ? '#2c3e50' : '#1565c0';
         }}
 
         document.getElementById('btnCalor').addEventListener('click', function() {{
-            calorActivo = !calorActivo;
-            this.textContent = 'Mapa de calor: ' + (calorActivo ? 'ON' : 'OFF');
-            this.style.background = calorActivo ? '#2c3e50' : '#c0392b';
-            refrescarEstiloCoropletico();
-            actualizarCapaCalor();
+            cambiarModo(modoActivo === 'calor' ? 'coropletico' : 'calor');
+        }});
+
+        document.getElementById('btnCluster').addEventListener('click', function() {{
+            cambiarModo(modoActivo === 'cluster' ? 'coropletico' : 'cluster');
         }});
 
         document.getElementById('btnAplicarMapa').addEventListener('click', function() {{
             actualizarMapaDengue();
-            actualizarCapaCalor();
+            cambiarModo(modoActivo);
         }});
         document.getElementById('btnLimpiarMapa').addEventListener('click', limpiarMapa);
         document.getElementById('anioSelect').addEventListener('change', function() {{
             actualizarMapaDengue();
-            actualizarCapaCalor();
+            cambiarModo(modoActivo);
         }});
         document.getElementById('caliSelect').addEventListener('change', function() {{
             actualizarMapaDengue();
-            actualizarCapaCalor();
+            cambiarModo(modoActivo);
         }});
         document.getElementById('variableSelect').addEventListener('change', actualizarMapaDengue);
 
