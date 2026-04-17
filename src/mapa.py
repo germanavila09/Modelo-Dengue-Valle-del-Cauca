@@ -44,7 +44,10 @@ def _preparar_dataset_mapa(gdf, anios):
 def _preparar_heat_data(puntos_df):
     heat_data = {}
     for anio, grupo in puntos_df.groupby("anio"):
-        heat_data[str(anio)] = grupo[["lat", "lng"]].values.tolist()
+        anio_str = str(anio)
+        heat_data[f"{anio_str}_con_cali"] = grupo[["lat", "lng"]].values.tolist()
+        sin_cali = grupo[grupo["mpio_ccdgo"].notna() & (grupo["mpio_ccdgo"] != "76001")]
+        heat_data[f"{anio_str}_sin_cali"] = sin_cali[["lat", "lng"]].values.tolist()
     return heat_data
 
 
@@ -301,9 +304,10 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
 
         function actualizarCapaCalor() {{
             const anio = document.getElementById('anioSelect').value;
+            const cali = document.getElementById('caliSelect').value;
             if (capaCalor) {{ map.removeLayer(capaCalor); capaCalor = null; }}
             if (!calorActivo) return;
-            const puntos = heatData[String(anio)];
+            const puntos = heatData[anio + '_' + cali];
             if (!puntos || puntos.length === 0) return;
             capaCalor = L.heatLayer(puntos, {{
                 radius: 18,
@@ -345,7 +349,10 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
             actualizarMapaDengue();
             actualizarCapaCalor();
         }});
-        document.getElementById('caliSelect').addEventListener('change', actualizarMapaDengue);
+        document.getElementById('caliSelect').addEventListener('change', function() {{
+            actualizarMapaDengue();
+            actualizarCapaCalor();
+        }});
         document.getElementById('variableSelect').addEventListener('change', actualizarMapaDengue);
 
         poblarAnios();

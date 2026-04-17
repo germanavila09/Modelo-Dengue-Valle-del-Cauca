@@ -45,6 +45,7 @@ def cargar_puntos_calor(engine=None):
     query = """
     SELECT
         "año"::text AS anio,
+        mpio_ccdgo,
         ROUND(ST_Y(geom)::numeric, 5) AS lat,
         ROUND(ST_X(geom)::numeric, 5) AS lng
     FROM public.dengue_m
