@@ -211,8 +211,11 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
 
             capaActual = L.geoJSON(data, {{
                 style: feature => ({{
-                    fillColor: getColor(feature.properties[variable], bins),
-                    weight: 1, opacity: 1, color: 'black', fillOpacity: 0.75
+                    fillColor: calorActivo ? 'transparent' : getColor(feature.properties[variable], bins),
+                    weight: calorActivo ? 1.5 : 1,
+                    opacity: 1,
+                    color: calorActivo ? '#555' : 'black',
+                    fillOpacity: calorActivo ? 0 : 0.75
                 }}),
                 onEachFeature: (feature, layer) => {{
                     const p = feature.properties || {{}};
@@ -310,10 +313,26 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
             }}).addTo(map);
         }}
 
+        function refrescarEstiloCoropletico() {{
+            if (!capaActual) return;
+            const variable = document.getElementById('variableSelect').value;
+            const data = capaActual.toGeoJSON();
+            const valores = data.features.map(f => f.properties[variable]);
+            const bins = calcularBins(valores);
+            capaActual.setStyle(feature => ({{
+                fillColor: calorActivo ? 'transparent' : getColor(feature.properties[variable], bins),
+                weight: calorActivo ? 1.5 : 1,
+                opacity: 1,
+                color: calorActivo ? '#555' : 'black',
+                fillOpacity: calorActivo ? 0 : 0.75
+            }}));
+        }}
+
         document.getElementById('btnCalor').addEventListener('click', function() {{
             calorActivo = !calorActivo;
             this.textContent = 'Mapa de calor: ' + (calorActivo ? 'ON' : 'OFF');
             this.style.background = calorActivo ? '#2c3e50' : '#c0392b';
+            refrescarEstiloCoropletico();
             actualizarCapaCalor();
         }});
 
