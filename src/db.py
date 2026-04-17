@@ -26,7 +26,9 @@ def cargar_datos(engine=None):
         "MPIO_CCDGO",
         "MPIO_CNMBR",
         "año",
+        "población",
         conteo_dengue,
+        incidencia_dengue,
         geom
     FROM {SCHEMA}.{TABLE}
     ORDER BY "año", "MPIO_CNMBR";

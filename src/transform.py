@@ -7,6 +7,8 @@ def limpiar_datos(gdf):
     gdf["MPIO_CNMBR"] = gdf["MPIO_CNMBR"].astype(str).str.upper().str.strip()
     gdf["año"] = pd.to_numeric(gdf["año"], errors="coerce").astype("Int64")
     gdf["conteo_dengue"] = pd.to_numeric(gdf["conteo_dengue"], errors="coerce")
+    gdf["población"] = pd.to_numeric(gdf["población"], errors="coerce")
+    gdf["incidencia_dengue"] = pd.to_numeric(gdf["incidencia_dengue"], errors="coerce")
     return gdf
 
 

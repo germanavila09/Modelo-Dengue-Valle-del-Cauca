@@ -194,8 +194,19 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
                 }}),
                 onEachFeature: (feature, layer) => {{
                     const p = feature.properties || {{}};
-                    layer.bindTooltip('<b>' + (p["MPIO_CNMBR"] || '') + '</b><br>Año: ' + (p["año"] || '') + '<br>Casos: ' + formatNumber(p["conteo_dengue"] || 0));
-                    layer.bindPopup('<b>Municipio:</b> ' + (p["MPIO_CNMBR"] || '') + '<br><b>Código:</b> ' + (p["MPIO_CCDGO"] || '') + '<br><b>Año:</b> ' + (p["año"] || '') + '<br><b>Casos:</b> ' + formatNumber(p["conteo_dengue"] || 0));
+                    layer.bindTooltip(
+                        '<b>' + (p["MPIO_CNMBR"] || '') + '</b><br>' +
+                        'Casos: ' + formatNumber(p["conteo_dengue"] || 0) + '<br>' +
+                        'Incidencia: ' + formatNumber(p["incidencia_dengue"] || 0) + ' x 100k'
+                    );
+                    layer.bindPopup(
+                        '<b>' + (p["MPIO_CNMBR"] || '') + '</b><br>' +
+                        '<b>Código:</b> ' + (p["MPIO_CCDGO"] || '') + '<br>' +
+                        '<b>Año:</b> ' + (p["año"] || '') + '<br>' +
+                        '<b>Población:</b> ' + formatNumber(p["población"] || 0) + '<br>' +
+                        '<b>Casos:</b> ' + formatNumber(p["conteo_dengue"] || 0) + '<br>' +
+                        '<b>Incidencia:</b> ' + formatNumber(p["incidencia_dengue"] || 0) + ' x 100k hab.'
+                    );
                     layer.on({{
                         mouseover: e => e.target.setStyle({{ weight: 3, color: '#333', fillOpacity: 0.9 }}),
                         mouseout: e => {{ if (capaActual) capaActual.resetStyle(e.target); }}
