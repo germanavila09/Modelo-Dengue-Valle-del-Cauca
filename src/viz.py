@@ -45,6 +45,55 @@ def graficar_heatmap(pivot, n=20):
     return fig
 
 
+def graficar_incidencia_por_anio(gdf):
+    inc = (
+        gdf.groupby("año", as_index=False)["incidencia_dengue"]
+        .mean()
+        .sort_values("año")
+    )
+    fig, ax = plt.subplots(figsize=(12, 5))
+    sns.barplot(data=inc, x="año", y="incidencia_dengue", ax=ax, color="#e74c3c")
+    ax.set_title("Incidencia promedio de dengue por año (x 100 000 hab.)")
+    ax.set_xlabel("Año")
+    ax.set_ylabel("Incidencia x 100k")
+    plt.tight_layout()
+    return fig
+
+
+def graficar_top_municipios_incidencia(gdf, anio, n=15):
+    df = gdf[gdf["año"] == anio].sort_values("incidencia_dengue", ascending=False).head(n)
+    fig, ax = plt.subplots(figsize=(12, 7))
+    sns.barplot(data=df, y="MPIO_CNMBR", x="incidencia_dengue", ax=ax, color="#e74c3c")
+    ax.set_title(f"Top {n} municipios por incidencia — {anio} (x 100k hab.)")
+    ax.set_xlabel("Incidencia x 100k")
+    ax.set_ylabel("Municipio")
+    plt.tight_layout()
+    return fig
+
+
+def graficar_scatter_poblacion_incidencia(gdf, anio):
+    df = gdf[gdf["año"] == anio].dropna(subset=["población", "incidencia_dengue"]).copy()
+    fig, ax = plt.subplots(figsize=(11, 7))
+    sns.scatterplot(
+        data=df, x="población", y="incidencia_dengue",
+        size="conteo_dengue", sizes=(40, 600),
+        hue="incidencia_dengue", palette="Reds", legend=False, ax=ax
+    )
+    for _, row in df.iterrows():
+        ax.annotate(
+            row["MPIO_CNMBR"],
+            (row["población"], row["incidencia_dengue"]),
+            fontsize=7, alpha=0.75,
+            xytext=(4, 3), textcoords="offset points"
+        )
+    ax.set_title(f"Población vs Incidencia por municipio — {anio}")
+    ax.set_xlabel("Población")
+    ax.set_ylabel("Incidencia x 100k hab.")
+    ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"{int(x):,}"))
+    plt.tight_layout()
+    return fig
+
+
 def graficar_serie_municipio(pivot, municipio):
     cols = columnas_anio(pivot)
     fila = pivot[pivot["MPIO_CNMBR"] == municipio]

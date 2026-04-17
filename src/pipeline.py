@@ -16,8 +16,11 @@ from .transform import calcular_priorizacion, construir_pivot, limpiar_datos
 from .viz import (
     graficar_casos_por_anio,
     graficar_heatmap,
+    graficar_incidencia_por_anio,
+    graficar_scatter_poblacion_incidencia,
     graficar_serie_municipio,
     graficar_top_municipios,
+    graficar_top_municipios_incidencia,
 )
 
 
@@ -44,9 +47,12 @@ def ejecutar(anio=None, municipio=None, ruta_salida=None):
 
     # 3. Gráficas
     print("[3/5] Generando graficas...")
-    _guardar(graficar_casos_por_anio(gdf),            ruta_graficas / "casos_por_anio.png")
-    _guardar(graficar_top_municipios(gdf, anio),      ruta_graficas / f"top_municipios_{anio}.png")
-    _guardar(graficar_heatmap(pivot),                 ruta_graficas / "heatmap.png")
+    _guardar(graficar_casos_por_anio(gdf),                        ruta_graficas / "casos_por_anio.png")
+    _guardar(graficar_incidencia_por_anio(gdf),                   ruta_graficas / "incidencia_por_anio.png")
+    _guardar(graficar_top_municipios(gdf, anio),                  ruta_graficas / f"top_municipios_{anio}.png")
+    _guardar(graficar_top_municipios_incidencia(gdf, anio),       ruta_graficas / f"top_incidencia_{anio}.png")
+    _guardar(graficar_heatmap(pivot),                             ruta_graficas / "heatmap.png")
+    _guardar(graficar_scatter_poblacion_incidencia(gdf, anio),    ruta_graficas / f"scatter_poblacion_{anio}.png")
     fig_serie = graficar_serie_municipio(pivot, municipio)
     if fig_serie:
         _guardar(fig_serie, ruta_graficas / f"serie_{municipio.lower()}.png")
