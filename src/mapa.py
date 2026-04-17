@@ -93,6 +93,11 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
         <h4>Filtros mapa dengue</h4>
         <label><b>Año</b></label>
         <select id="anioSelect"></select>
+        <label><b>Variable</b></label>
+        <select id="variableSelect">
+            <option value="conteo_dengue" selected>Casos absolutos</option>
+            <option value="incidencia_dengue">Incidencia x 100k hab.</option>
+        </select>
         <label><b>Cali</b></label>
         <select id="caliSelect">
             <option value="sin_cali" selected>Sin Cali</option>
@@ -152,13 +157,13 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
             return [quant(0.2), quant(0.4), quant(0.6), quant(0.8), quant(0.95)];
         }}
 
-        function crearLeyenda(bins, anio) {{
+        function crearLeyenda(bins, anio, etiqueta) {{
             if (leyendaActual) map.removeControl(leyendaActual);
             leyendaActual = L.control({{ position: 'topright' }});
             leyendaActual.onAdd = function() {{
                 const div = L.DomUtil.create('div', 'legend-box');
                 const colores = ['#ffffb2','#fecc5c','#fd8d3c','#f03b20','#bd0026'];
-                div.innerHTML = '<b>Casos de dengue ' + anio + '</b><br>';
+                div.innerHTML = '<b>' + etiqueta + ' ' + anio + '</b><br>';
                 let desde = 0;
                 for (let i = 0; i < bins.length; i++) {{
                     const hasta = Math.round(bins[i]);
@@ -173,6 +178,7 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
         function actualizarMapaDengue() {{
             const anio = document.getElementById('anioSelect').value;
             const cali = document.getElementById('caliSelect').value;
+            const variable = document.getElementById('variableSelect').value;
             const data = datasetsDengue[anio + '_' + cali];
 
             if (!data || !data.features || data.features.length === 0) {{
@@ -183,13 +189,13 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
 
             if (capaActual) map.removeLayer(capaActual);
 
-            const valores = data.features.map(f => f.properties["conteo_dengue"]);
+            const valores = data.features.map(f => f.properties[variable]);
             const bins = calcularBins(valores);
-            const totalCasos = valores.reduce((acc, v) => acc + Number(v || 0), 0);
+            const totalCasos = data.features.map(f => f.properties["conteo_dengue"]).reduce((acc, v) => acc + Number(v || 0), 0);
 
             capaActual = L.geoJSON(data, {{
                 style: feature => ({{
-                    fillColor: getColor(feature.properties["conteo_dengue"], bins),
+                    fillColor: getColor(feature.properties[variable], bins),
                     weight: 1, opacity: 1, color: 'black', fillOpacity: 0.75
                 }}),
                 onEachFeature: (feature, layer) => {{
@@ -217,14 +223,18 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
             try {{ map.fitBounds(capaActual.getBounds()); }}
             catch (err) {{ map.setView(centroInicial, zoomInicial); }}
 
-            crearLeyenda(bins, anio);
+            const etiquetaVariable = variable === 'conteo_dengue' ? 'Casos absolutos' : 'Incidencia x 100k';
+            crearLeyenda(bins, anio, etiquetaVariable);
             document.getElementById('estadoMapa').innerHTML = 'Mostrando <b>' + anio + '</b> — ' + cali.replace('_', ' ');
-            document.getElementById('resumenMapa').innerHTML = '<b>Municipios:</b> ' + formatNumber(data.features.length) + '<br><b>Total casos:</b> ' + formatNumber(totalCasos);
+            document.getElementById('resumenMapa').innerHTML =
+                '<b>Municipios:</b> ' + formatNumber(data.features.length) + '<br>' +
+                '<b>Total casos:</b> ' + formatNumber(totalCasos);
         }}
 
         function limpiarMapa() {{
             document.getElementById('anioSelect').value = String(anioDefault);
             document.getElementById('caliSelect').value = 'sin_cali';
+            document.getElementById('variableSelect').value = 'conteo_dengue';
             actualizarMapaDengue();
         }}
 
@@ -232,6 +242,7 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
         document.getElementById('btnLimpiarMapa').addEventListener('click', limpiarMapa);
         document.getElementById('anioSelect').addEventListener('change', actualizarMapaDengue);
         document.getElementById('caliSelect').addEventListener('change', actualizarMapaDengue);
+        document.getElementById('variableSelect').addEventListener('change', actualizarMapaDengue);
 
         poblarAnios();
         actualizarMapaDengue();
