@@ -2,10 +2,12 @@
 Genera el mapa HTML interactivo para un año dado.
 
 Uso:
-    python scripts/exportar_mapa.py          # usa ANIO_DEFAULT del .env
-    python scripts/exportar_mapa.py 2023     # año específico
+    python scripts/exportar_mapa.py
+    python scripts/exportar_mapa.py --anio 2023
+    python scripts/exportar_mapa.py --anio 2023 --salida ruta/salida
 """
 
+import argparse
 import sys
 from pathlib import Path
 
@@ -18,20 +20,25 @@ from src.transform import limpiar_datos
 
 
 def main():
-    anio_default = int(sys.argv[1]) if len(sys.argv) > 1 else ANIO
+    parser = argparse.ArgumentParser(description="Exportar mapa HTML de dengue")
+    parser.add_argument("--anio",   type=int, default=None, help="Año de referencia (default: ANIO_DEFAULT del .env)")
+    parser.add_argument("--salida", type=str, default=None, help="Ruta de salida (default: RUTA_SALIDA del .env)")
+    args = parser.parse_args()
+
+    anio_default = args.anio or ANIO
+    ruta_salida  = args.salida or RUTA_SALIDA
 
     print("Cargando datos...")
     engine = crear_engine()
     gdf = limpiar_datos(cargar_datos(engine))
-
     anios_disponibles = sorted(gdf["año"].dropna().astype(int).unique().tolist())
 
     if anio_default not in anios_disponibles:
-        print(f"ERROR: año {anio_default} no disponible. Años válidos: {anios_disponibles}")
+        print(f"ERROR: año {anio_default} no disponible. Anos validos: {anios_disponibles}")
         sys.exit(1)
 
     print(f"Generando mapa para {anio_default}...")
-    ruta = generar_mapa_html(gdf, anios_disponibles, RUTA_SALIDA, anio_default=anio_default)
+    ruta = generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default=anio_default)
     print(f"Mapa guardado en: {ruta}")
 
 

@@ -20,31 +20,41 @@ def main():
     gdf = limpiar_datos(cargar_datos(engine))
 
     anios = sorted(gdf["año"].dropna().astype(int).unique().tolist())
-    casos_totales = gdf["conteo_dengue"].sum()
-    nulos = gdf["conteo_dengue"].isna().sum()
 
     print("\n-- Resumen general --------------------------")
     print(f"  Registros      : {len(gdf)}")
     print(f"  Municipios     : {gdf['MPIO_CNMBR'].nunique()}")
-    print(f"  Años           : {anios[0]} – {anios[-1]}")
-    print(f"  Casos totales  : {casos_totales:,.0f}")
-    print(f"  Valores nulos  : {nulos}")
+    print(f"  Anos           : {anios[0]} - {anios[-1]}")
+    print(f"  Casos totales  : {gdf['conteo_dengue'].sum():,.0f}")
+    print(f"  Nulos (casos)  : {gdf['conteo_dengue'].isna().sum()}")
 
-    print("\n-- Casos por anno ---------------------------")
-    por_anio = (
-        gdf.groupby("año")["conteo_dengue"]
-        .sum()
-        .sort_index()
-    )
+    print("\n-- Casos por ano ----------------------------")
+    por_anio = gdf.groupby("año")["conteo_dengue"].sum().sort_index()
     for anio, casos in por_anio.items():
         barra = "#" * int(casos / por_anio.max() * 30)
         print(f"  {anio}  {barra} {casos:,.0f}")
 
-    print("\n-- Top 5 municipios (carga historica) ------")
+    print("\n-- Incidencia promedio por ano (x 100k) -----")
+    inc_anio = gdf.groupby("año")["incidencia_dengue"].mean().sort_index()
+    for anio, inc in inc_anio.items():
+        barra = "#" * int(inc / inc_anio.max() * 30)
+        print(f"  {anio}  {barra} {inc:,.1f}")
+
+    print("\n-- Top 5 por carga historica (casos) --------")
     pivot = construir_pivot(gdf)
     top5 = calcular_priorizacion(pivot).head(5)
     for _, row in top5.iterrows():
-        print(f"  {row['MPIO_CNMBR']:<30} {row['total']:,.0f}")
+        print(f"  {row['MPIO_CNMBR']:<30} {row['total']:,.0f} casos")
+
+    print("\n-- Top 5 por incidencia promedio ------------")
+    inc_mun = (
+        gdf.groupby("MPIO_CNMBR")["incidencia_dengue"]
+        .mean()
+        .sort_values(ascending=False)
+        .head(5)
+    )
+    for mun, inc in inc_mun.items():
+        print(f"  {mun:<30} {inc:,.1f} x 100k")
 
     print()
 
