@@ -1,8 +1,6 @@
 import json
 from pathlib import Path
 
-import geopandas as gpd
-
 
 def _filtrar_capa_mapa(gdf, anio, incluir_cali=True):
     gdf_filtrado = gdf[gdf["año"] == anio].copy()
