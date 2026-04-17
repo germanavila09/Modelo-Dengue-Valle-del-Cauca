@@ -200,19 +200,61 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, nombre=
                 }}),
                 onEachFeature: (feature, layer) => {{
                     const p = feature.properties || {{}};
+
                     layer.bindTooltip(
                         '<b>' + (p["MPIO_CNMBR"] || '') + '</b><br>' +
                         'Casos: ' + formatNumber(p["conteo_dengue"] || 0) + '<br>' +
                         'Incidencia: ' + formatNumber(p["incidencia_dengue"] || 0) + ' x 100k'
                     );
-                    layer.bindPopup(
-                        '<b>' + (p["MPIO_CNMBR"] || '') + '</b><br>' +
-                        '<b>Código:</b> ' + (p["MPIO_CCDGO"] || '') + '<br>' +
-                        '<b>Año:</b> ' + (p["año"] || '') + '<br>' +
-                        '<b>Población:</b> ' + formatNumber(p["población"] || 0) + '<br>' +
-                        '<b>Casos:</b> ' + formatNumber(p["conteo_dengue"] || 0) + '<br>' +
-                        '<b>Incidencia:</b> ' + formatNumber(p["incidencia_dengue"] || 0) + ' x 100k hab.'
-                    );
+
+                    const inc = Number(p["incidencia_dengue"] || 0);
+                    const pct = totalCasos > 0 ? (Number(p["conteo_dengue"] || 0) / totalCasos * 100).toFixed(1) : '0.0';
+                    const nivel = inc > 1000 ? ['Critico', '#bd0026'] :
+                                  inc > 500  ? ['Alto',    '#f03b20'] :
+                                  inc > 100  ? ['Medio',   '#fd8d3c'] :
+                                               ['Bajo',    '#2e7d32'];
+
+                    layer.bindPopup(`
+                        <div style="min-width:210px; font-size:13px">
+                            <div style="background:${{nivel[1]}}; color:white; padding:8px 10px; margin:-13px -20px 10px; border-radius:4px 4px 0 0; font-weight:bold; font-size:14px">
+                                ${{p["MPIO_CNMBR"] || ''}}
+                            </div>
+                            <table style="width:100%; border-collapse:collapse">
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Código DANE</td>
+                                    <td style="text-align:right"><b>${{p["MPIO_CCDGO"] || ''}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Año</td>
+                                    <td style="text-align:right"><b>${{p["año"] || ''}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Población</td>
+                                    <td style="text-align:right"><b>${{formatNumber(p["población"] || 0)}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Casos</td>
+                                    <td style="text-align:right"><b>${{formatNumber(p["conteo_dengue"] || 0)}}</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">% del total</td>
+                                    <td style="text-align:right"><b>${{pct}}%</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Incidencia</td>
+                                    <td style="text-align:right"><b>${{formatNumber(inc)}} x 100k</b></td>
+                                </tr>
+                                <tr>
+                                    <td style="color:#666; padding:3px 0">Nivel</td>
+                                    <td style="text-align:right">
+                                        <span style="background:${{nivel[1]}}; color:white; padding:2px 8px; border-radius:10px; font-size:12px">
+                                            ${{nivel[0]}}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+                    `);
                     layer.on({{
                         mouseover: e => e.target.setStyle({{ weight: 3, color: '#333', fillOpacity: 0.9 }}),
                         mouseout: e => {{ if (capaActual) capaActual.resetStyle(e.target); }}
