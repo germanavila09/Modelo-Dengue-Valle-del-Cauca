@@ -1,0 +1,12 @@
+include README.md
+include LICENSE
+include requirements.txt
+include .env.example
+recursive-include src *.py
+recursive-include notebooks *.ipynb
+recursive-include scripts *.py
+recursive-include frontend *.html *.js *.css
+recursive-include docs *.md
+recursive-exclude __pycache__ *
+recursive-exclude .pytest_cache *
+recursive-exclude .git *

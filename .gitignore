@@ -18,14 +18,23 @@ build/
 *.ipynb_checkpoints
 
 # Salidas generadas
-outputs/
-*.html
-*.gpkg
-*.csv
+outputs/           # Gráficas, CSVs, mapas, logs de entrenamiento
+*.gpkg             # Archivos GeoPackage
+*.csv              # CSVs generados (excepto repo/data/)
+notebooks/*.html   # HTMLs exportados desde notebooks
 
 # IDEs
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.lcov
 
 # Sistema operativo
 .DS_Store
