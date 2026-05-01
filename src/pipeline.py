@@ -12,9 +12,12 @@ from pathlib import Path
 from .config import ANIO, MUNICIPIO, RUTA_SALIDA
 from .db import cargar_datos, cargar_puntos_calor, crear_engine
 from .mapa import generar_mapa_html
+from .modelo import cargar_serie_semanal, pronosticar_municipio, pronosticar_todos
 from .transform import calcular_priorizacion, construir_pivot, limpiar_datos
 from .viz import (
     graficar_casos_por_anio,
+    graficar_forecast_municipio,
+    graficar_forecast_top,
     graficar_heatmap,
     graficar_incidencia_por_anio,
     graficar_scatter_poblacion_incidencia,
@@ -22,6 +25,46 @@ from .viz import (
     graficar_top_municipios,
     graficar_top_municipios_incidencia,
 )
+
+
+def ejecutar_forecast(anio=None, municipio=None, ruta_salida=None, todos=False, periodos=52, accelerator="gpu"):
+    """
+    Ejecuta el pipeline de pronóstico con NeuralProphet + GPU.
+    - todos=False : pronostica solo el municipio de referencia
+    - todos=True  : pronostica los 42 municipios (toma ~10-15 min con GPU)
+    """
+    municipio   = municipio   or MUNICIPIO
+    ruta_salida = Path(ruta_salida or RUTA_SALIDA)
+    ruta_graficas = ruta_salida / "graficas"
+    ruta_graficas.mkdir(parents=True, exist_ok=True)
+
+    engine = crear_engine()
+    gdf    = limpiar_datos(cargar_datos(engine))
+    nombres = dict(zip(gdf["MPIO_CCDGO"], gdf["MPIO_CNMBR"]))
+
+    mpio_ccdgo = gdf[gdf["MPIO_CNMBR"] == municipio]["MPIO_CCDGO"].iloc[0] \
+                 if municipio in gdf["MPIO_CNMBR"].values else municipio
+
+    if todos:
+        print(f"Pronosticando 42 municipios con {accelerator.upper()} — {periodos} semanas...")
+        forecast_df = pronosticar_todos(engine, periodos=periodos, accelerator=accelerator,
+                                        ruta_salida=str(ruta_salida))
+        top_mpios = (
+            gdf.groupby("MPIO_CCDGO")["conteo_dengue"].sum()
+            .sort_values(ascending=False).head(6).index.tolist()
+        )
+        fig_grid = graficar_forecast_top(forecast_df, nombres, mpios=top_mpios,
+                                          ruta_salida=str(ruta_graficas))
+        print(f"Grid guardado: {ruta_graficas / 'forecast_top_municipios.png'}")
+    else:
+        print(f"Pronosticando {municipio} ({mpio_ccdgo}) con {accelerator.upper()}...")
+        forecast_df = pronosticar_municipio(engine, mpio_ccdgo, periodos=periodos, accelerator=accelerator)
+        fig = graficar_forecast_municipio(forecast_df, mpio_ccdgo,
+                                           nombre_municipio=nombres.get(mpio_ccdgo, municipio),
+                                           ruta_salida=str(ruta_graficas))
+        print(f"Forecast guardado: {ruta_graficas / f'forecast_{mpio_ccdgo}.png'}")
+
+    return forecast_df
 
 
 def ejecutar(anio=None, municipio=None, ruta_salida=None):
