@@ -38,4 +38,6 @@ def calcular_priorizacion(pivot):
     cols = columnas_anio(pivot)
     result = pivot.copy()
     result["total"] = result[cols].sum(axis=1)
-    return result.sort_values("total", ascending=False).reset_index(drop=True)
+    result = result.sort_values("total", ascending=False).reset_index(drop=True)
+    result["ranking"] = result.index + 1
+    return result

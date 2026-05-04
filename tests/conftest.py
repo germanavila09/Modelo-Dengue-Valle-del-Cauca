@@ -56,10 +56,8 @@ def mock_db_config(mock_env_vars):
 def sample_gdf():
     """Sample GeoDataFrame for testing."""
     import geopandas as gpd
-    import pandas as pd
-    from shapely.geometry import MultiPolygon, Polygon
+    from shapely.geometry import Polygon
 
-    # Create sample data
     data = {
         "MPIO_CCDGO": ["76001", "76109", "76520"],
         "MPIO_CNMBR": ["Cali", "Buenaventura", "Palmira"],
@@ -67,20 +65,14 @@ def sample_gdf():
         "población": [2250000, 425000, 322000],
         "conteo_dengue": [1250, 580, 340],
         "incidencia_dengue": [55.5, 136.4, 105.6],
+        "geom": [
+            Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
+            Polygon([(1, 0), (2, 0), (2, 1), (1, 1)]),
+            Polygon([(0, 1), (1, 1), (1, 2), (0, 2)]),
+        ],
     }
 
-    gdf = gpd.GeoDataFrame(data)
-    
-    # Add simple polygons
-    polygons = [
-        Polygon([(0, 0), (1, 0), (1, 1), (0, 1)]),
-        Polygon([(1, 0), (2, 0), (2, 1), (1, 1)]),
-        Polygon([(0, 1), (1, 1), (1, 2), (0, 2)]),
-    ]
-    gdf["geometry"] = polygons
-    gdf.set_crs("EPSG:3857", inplace=True)
-
-    return gdf
+    return gpd.GeoDataFrame(data, geometry="geom", crs="EPSG:3857")
 
 
 @pytest.fixture

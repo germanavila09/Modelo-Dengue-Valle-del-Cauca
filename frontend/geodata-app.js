@@ -3,7 +3,7 @@
 const I18N = {
   es: {
     dashboard:'Panel', geovisor:'Geovisor', indicadores:'Indicadores',
-    tendencias:'Tendencias', priorizacion:'Priorización',
+    tendencias:'Tendencias', priorizacion:'Priorización', coropletico:'Coropléticos',
     total_casos:'Casos totales', inc_prom:'Incidencia promedio',
     mun_criticos:'Municipios críticos', anio_pico:'Año pico',
     casos_x100k:'× 100 000 hab.', municipios:'municipios',
@@ -22,7 +22,7 @@ const I18N = {
   },
   en: {
     dashboard:'Dashboard', geovisor:'Geovisor', indicadores:'Indicators',
-    tendencias:'Trends', priorizacion:'Prioritization',
+    tendencias:'Trends', priorizacion:'Prioritization', coropletico:'Choropleth',
     total_casos:'Total cases', inc_prom:'Avg. incidence',
     mun_criticos:'Critical municipalities', anio_pico:'Peak year',
     casos_x100k:'per 100 000 pop.', municipios:'municipalities',
@@ -52,6 +52,14 @@ let mapInstance = null;
 let mapLayers = [];
 let charts = {};
 
+// Coropléticos state
+let choroMap = null;
+let choroMapLayers = [];
+let CHORO_YEAR = 2024;
+let CHORO_VAR = 'incidencia_dengue';
+let CHORO_CALI = false;
+let chorLegend = null;
+
 function t(k) { return I18N[LANG][k] || k; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -65,6 +73,13 @@ function navigate(section) {
   if (nav) nav.classList.add('active');
   document.getElementById('header-title').textContent = t(section);
   if (section === 'geovisor' && mapInstance) { setTimeout(() => mapInstance.invalidateSize(), 100); }
+  if (section === 'coropletico') {
+    setTimeout(() => {
+      if (!choroMap) initChoroMap();
+      else { choroMap.invalidateSize(); renderChoroLayer(); }
+    }, 100);
+    return;
+  }
   // Render charts AFTER section is visible — setTimeout ensures full CSS layout
   setTimeout(() => {
     if (section === 'indicadores') renderIndicadores();
@@ -755,11 +770,215 @@ window.addEventListener('message', e => {
 });
 window.parent.postMessage({ type: '__edit_mode_available' }, '*');
 
+// ─── Coropléticos ─────────────────────────────────────────────────────────────
+function initChoroMap() {
+  if (choroMap) { choroMap.invalidateSize(); renderChoroLayer(); return; }
+  choroMap = L.map('choro-map', { zoomControl: false, preferCanvas: true })
+    .setView([3.8, -76.5], 8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '©OpenStreetMap ©CARTO', subdomains: 'abcd', maxZoom: 19
+  }).addTo(choroMap);
+  L.control.zoom({ position: 'bottomright' }).addTo(choroMap);
+
+  const pillsCont = document.getElementById('choro-year-pills');
+  if (pillsCont && !pillsCont.children.length) {
+    const chorYears = typeof YEARS !== 'undefined' ? YEARS.filter(y => y <= 2024) : [2019,2020,2021,2022,2023,2024];
+    chorYears.forEach(y => {
+      const btn = document.createElement('button');
+      btn.className = 'year-pill-btn' + (y === CHORO_YEAR ? ' active' : '');
+      btn.textContent = y;
+      btn.addEventListener('click', () => {
+        CHORO_YEAR = y;
+        document.querySelectorAll('.year-pill-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        renderChoroLayer();
+      });
+      pillsCont.appendChild(btn);
+    });
+  }
+  renderChoroLayer();
+}
+
+function renderChoroLayer() {
+  if (!choroMap || typeof GEO_MUNI === 'undefined') return;
+  choroMapLayers.forEach(l => choroMap.removeLayer(l));
+  choroMapLayers = [];
+  if (chorLegend) { choroMap.removeControl(chorLegend); chorLegend = null; }
+
+  const isRiesgo = CHORO_VAR === 'riesgo';
+  const isDelta  = CHORO_VAR === 'delta';
+
+  const yearSect = document.getElementById('choro-year-sect');
+  if (yearSect) yearSect.style.display = (isRiesgo || isDelta) ? 'none' : '';
+
+  const lookup = {};
+  if (isRiesgo) {
+    if (typeof RISK_MAP !== 'undefined') Object.assign(lookup, RISK_MAP);
+  } else if (isDelta) {
+    if (typeof DELTA_MAP !== 'undefined') Object.assign(lookup, DELTA_MAP);
+  } else {
+    getByYear(CHORO_YEAR).filter(r => CHORO_CALI || r.MPIO_CCDGO !== '76001')
+      .forEach(r => { lookup[r.MPIO_CCDGO] = r; });
+  }
+
+  let colorFn, legendHtml;
+
+  if (isRiesgo) {
+    const RC = { 'Crítico':'#f87171', 'Alto':'#fbbf24', 'Medio':'#34d399', 'Bajo':'#3b82f6' };
+    colorFn = code => RC[lookup[code]?.nivel] || '#111827';
+    legendHtml = `<b style="color:#e2e8f8">Nivel de riesgo</b>
+      <div style="font-size:10px;color:#64748b;margin:4px 0 8px">Prom. incidencia 2022–24</div>`
+      + ['Crítico','Alto','Medio','Bajo'].map(n =>
+          `<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+            <span style="width:12px;height:12px;border-radius:3px;background:${RC[n]};flex-shrink:0"></span>
+            <span>${n}</span></div>`).join('');
+
+  } else if (isDelta) {
+    const steps = [[-1e9,-30,'#1d4ed8'],[-30,-10,'#3b82f6'],[-10,0,'#93c5fd'],[0,10,'#fca5a5'],[10,30,'#f87171'],[30,1e9,'#dc2626']];
+    colorFn = code => {
+      const d = lookup[code]?.delta_pct;
+      if (d == null) return '#111827';
+      return (steps.find(([lo,hi]) => d >= lo && d < hi) || [0,0,'#111827'])[2];
+    };
+    legendHtml = `<b style="color:#e2e8f8">Cambio 2023 → 2024</b>
+      <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,#1d4ed8,#93c5fd,#e2e8f8,#fca5a5,#dc2626);margin:8px 0 6px"></div>
+      <div style="display:flex;justify-content:space-between;font-size:10px"><span>Baja</span><span>±0</span><span>Sube</span></div>`;
+
+  } else {
+    const vals = Object.values(lookup).map(r => r[CHORO_VAR]).filter(v => v != null).sort((a,b) => a-b);
+    const q = f => vals[Math.max(0, Math.floor((vals.length - 1) * f))];
+    const bins = [q(0.2), q(0.4), q(0.6), q(0.8)];
+    const PAL = CHORO_VAR === 'incidencia_dengue'
+      ? ['#0f2040','#1d4ed8','#22d3ee','#fbbf24','#f87171']
+      : ['#0f2040','#1e3a5f','#2d6aab','#22d3ee','#f87171'];
+    const binLabels = [
+      `< ${Math.round(bins[0])}`,
+      `${Math.round(bins[0])}–${Math.round(bins[1])}`,
+      `${Math.round(bins[1])}–${Math.round(bins[2])}`,
+      `${Math.round(bins[2])}–${Math.round(bins[3])}`,
+      `> ${Math.round(bins[3])}`
+    ];
+    colorFn = code => {
+      const v = lookup[code]?.[CHORO_VAR];
+      if (v == null) return '#111827';
+      if (v > bins[3]) return PAL[4];
+      if (v > bins[2]) return PAL[3];
+      if (v > bins[1]) return PAL[2];
+      if (v > bins[0]) return PAL[1];
+      return PAL[0];
+    };
+    const vLabel = CHORO_VAR === 'incidencia_dengue' ? 'Incidencia ×100k' : 'Casos absolutos';
+    legendHtml = `<b style="color:#e2e8f8">${vLabel} — ${CHORO_YEAR}</b><div style="margin:8px 0">`
+      + PAL.map((c,i) => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+          <span style="width:12px;height:12px;border-radius:3px;background:${c};flex-shrink:0"></span>
+          <span>${binLabels[i]}</span></div>`).join('') + '</div>';
+  }
+
+  const layer = L.geoJSON(GEO_MUNI, {
+    style: feat => ({
+      fillColor: colorFn(feat.properties?.MPIO_CCDGO),
+      color: '#060a12', weight: 0.8, fillOpacity: 0.82
+    }),
+    onEachFeature: (feat, lyr) => {
+      const code = feat.properties?.MPIO_CCDGO;
+      const name = feat.properties?.MPIO_CNMBR;
+      const rec  = lookup[code];
+      let tip;
+      if (isRiesgo && rec) {
+        const c = colorFn(code);
+        tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:170px">
+          <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px">${name}</div>
+          <div style="color:#94a3b8;font-size:12px">Nivel: <b style="color:${c}">${rec.nivel}</b></div>
+          <div style="color:#94a3b8;font-size:12px">Inc. prom: <b style="color:#e2e8f8">${rec.inc_prom?.toFixed(1)}</b> ×100k</div>
+        </div>`;
+      } else if (isDelta && rec) {
+        const sign = (rec.delta_pct ?? 0) >= 0 ? '+' : '';
+        const c = colorFn(code);
+        tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:170px">
+          <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px">${name}</div>
+          <div style="color:#94a3b8;font-size:12px">Δ 2023→2024: <b style="color:${c}">${sign}${rec.delta_pct?.toFixed(1) ?? '—'}%</b></div>
+          <div style="color:#94a3b8;font-size:12px">Inc. 2023: <b>${rec.inc_2023?.toFixed(1)}</b></div>
+          <div style="color:#94a3b8;font-size:12px">Inc. 2024: <b>${rec.inc_2024?.toFixed(1)}</b></div>
+        </div>`;
+      } else if (rec) {
+        tip = munTooltip(rec, colorFn(code));
+      } else {
+        tip = `<b>${name}</b><br><span style="color:#64748b">Sin datos</span>`;
+      }
+      lyr.bindTooltip(tip, { className: 'geo-tooltip', sticky: true });
+      lyr.on({
+        mouseover: e => e.target.setStyle({ weight: 2, fillOpacity: 0.96, color: '#ffffff44' }),
+        mouseout:  e => layer.resetStyle(e.target)
+      });
+    }
+  }).addTo(choroMap);
+  choroMapLayers.push(layer);
+  try { choroMap.fitBounds(layer.getBounds(), { padding: [12, 12] }); } catch(e) {}
+
+  chorLegend = L.control({ position: 'bottomright' });
+  chorLegend.onAdd = () => {
+    const div = L.DomUtil.create('div');
+    div.style.cssText = 'background:#0c1221ee;border:1px solid #1c2d4a;border-radius:8px;padding:10px 12px;font-family:Space Grotesk,sans-serif;font-size:11px;color:#94a3b8;min-width:155px';
+    div.innerHTML = legendHtml;
+    return div;
+  };
+  chorLegend.addTo(choroMap);
+
+  renderChoroStats(lookup, isRiesgo, isDelta);
+}
+
+function renderChoroStats(lookup, isRiesgo, isDelta) {
+  const el = document.getElementById('choro-stats');
+  if (!el) return;
+  if (isRiesgo) {
+    const cnt = { 'Crítico':0, 'Alto':0, 'Medio':0, 'Bajo':0 };
+    Object.values(lookup).forEach(r => { if (r.nivel in cnt) cnt[r.nivel]++; });
+    const RC = { 'Crítico':'#f87171', 'Alto':'#fbbf24', 'Medio':'#34d399', 'Bajo':'#3b82f6' };
+    el.innerHTML = Object.entries(cnt).map(([n,c]) =>
+      `<div class="map-stat"><span class="map-stat-val" style="font-size:18px;color:${RC[n]}">${c}</span><span class="map-stat-lbl">${n}</span></div>`
+    ).join('');
+  } else if (isDelta) {
+    const vals = Object.values(lookup).map(r => r.delta_pct).filter(v => v != null);
+    const mejoran  = vals.filter(v => v < 0).length;
+    const empeoran = vals.filter(v => v > 0).length;
+    const med = [...vals].sort((a,b)=>a-b)[Math.floor(vals.length/2)];
+    el.innerHTML = `
+      <div class="map-stat"><span class="map-stat-val" style="color:#34d399">${mejoran}</span><span class="map-stat-lbl">Mejoran</span></div>
+      <div class="map-stat"><span class="map-stat-val" style="color:#f87171">${empeoran}</span><span class="map-stat-lbl">Empeoran</span></div>
+      <div class="map-stat"><span class="map-stat-val">${med != null ? (med>=0?'+':'')+med.toFixed(1)+'%' : '—'}</span><span class="map-stat-lbl">Mediana Δ</span></div>`;
+  } else {
+    const data = getByYear(CHORO_YEAR).filter(r => CHORO_CALI || r.MPIO_CCDGO !== '76001');
+    const total  = data.reduce((s, r) => s + r.conteo_dengue, 0);
+    const avgInc = (data.reduce((s, r) => s + r.incidencia_dengue, 0) / (data.length || 1)).toFixed(1);
+    const nCrit  = data.filter(r => r.incidencia_dengue > 400).length;
+    el.innerHTML = `
+      <div class="map-stat"><span class="map-stat-val">${fmt(total)}</span><span class="map-stat-lbl">casos ${CHORO_YEAR}</span></div>
+      <div class="map-stat"><span class="map-stat-val">${avgInc}</span><span class="map-stat-lbl">inc. prom ×100k</span></div>
+      <div class="map-stat"><span class="map-stat-val">${nCrit}</span><span class="map-stat-lbl">mun. &gt;400 inc.</span></div>`;
+  }
+}
+
+function wireChoroControls() {
+  document.querySelectorAll('[data-cv]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('[data-cv]').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      CHORO_VAR = btn.dataset.cv;
+      if (choroMap) renderChoroLayer();
+    });
+  });
+  document.getElementById('choro-cali')?.addEventListener('change', e => {
+    CHORO_CALI = e.target.checked;
+    if (choroMap) renderChoroLayer();
+  });
+}
+
 // ─── Init ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   buildYearSelector();
   wireMapControls();
   wireDiseaseSelector();
+  wireChoroControls();
   buildTweaksPanel();
   applyTweaks();
 

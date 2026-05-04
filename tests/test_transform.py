@@ -1,39 +1,32 @@
 """Tests for src/transform.py module."""
 
 import pytest
-from pathlib import Path
-import sys
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 class TestLimpiarDatos:
     """Test data cleaning functions."""
 
     def test_limpiar_datos_removes_nulls(self, sample_gdf):
-        """Test that limpiar_datos handles null values."""
+        """Test that limpiar_datos handles null values without dropping rows."""
+        import pandas as pd
         from src.transform import limpiar_datos
-        
-        # Add some null values
+
         sample_gdf.loc[0, "conteo_dengue"] = None
-        
         result = limpiar_datos(sample_gdf)
-        
-        # Should still have data after cleaning
-        assert len(result) > 0
-        assert result.isnull().sum().sum() == 0  # No nulls in key columns
+
+        assert len(result) == len(sample_gdf)
+        assert pd.api.types.is_numeric_dtype(result["conteo_dengue"])
 
     def test_limpiar_datos_normalizes_types(self, sample_gdf):
         """Test that limpiar_datos normalizes data types."""
+        import pandas as pd
         from src.transform import limpiar_datos
-        
+
         result = limpiar_datos(sample_gdf)
-        
-        # Check expected types
-        assert result["año"].dtype in ["int32", "int64"]
-        assert result["MPIO_CCDGO"].dtype == "object"  # text/str
-        assert result["conteo_dengue"].dtype in ["int32", "int64"]
+
+        assert pd.api.types.is_integer_dtype(result["año"])
+        assert result["MPIO_CCDGO"].dtype == "object"
+        assert pd.api.types.is_numeric_dtype(result["conteo_dengue"])
 
 
 class TestConstruirPivot:

@@ -18,10 +18,12 @@ build/
 *.ipynb_checkpoints
 
 # Salidas generadas
-outputs/           # Gráficas, CSVs, mapas, logs de entrenamiento
-*.gpkg             # Archivos GeoPackage
-*.csv              # CSVs generados (excepto repo/data/)
-notebooks/*.html   # HTMLs exportados desde notebooks
+outputs/
+*.gpkg
+*.csv
+
+# Notebooks exportados a HTML (generados por nbconvert)
+notebooks/*.html
 
 # IDEs
 .vscode/

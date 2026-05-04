@@ -1,11 +1,32 @@
+# Análisis y datos
 pandas>=2.0
-geopandas>=1.1.3
 numpy>=1.26
+geopandas>=1.1.3
+shapely>=2.0
+
+# Base de datos / PostGIS
+SQLAlchemy>=2.0.49
+psycopg2-binary>=2.9.11
+geoalchemy2>=0.14
+
+# Visualización
 matplotlib>=3.10.8
 seaborn>=0.13.2
-SQLAlchemy>=2.0.49
-psycopg2>=2.9.11
-python-dotenv>=1.2.2
+
+# Análisis espacial (AEDE)
+libpysal>=4.10
+esda>=2.6
+splot>=1.1.5
+
+# Modelado predictivo
 neuralprophet>=0.8.0
-# PyTorch con CUDA: instalar manualmente con:
+# setuptools<81 requerido por lightning_fabric (neuralprophet -> pytorch_lightning)
+setuptools<81
+
+# Utilidades
+python-dotenv>=1.2.2
+nbconvert>=7.0
+jupyter>=1.0
+
+# PyTorch con CUDA — instalar manualmente:
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124

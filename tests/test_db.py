@@ -1,12 +1,7 @@
 """Tests for src/db.py module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import sys
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from unittest.mock import Mock, patch
 
 
 class TestDBConfig:
@@ -57,28 +52,31 @@ class TestCrearEngine:
 class TestCargarDatos:
     """Test data loading functions."""
 
-    @patch("src.db.pd.read_sql")
-    def test_cargar_datos_returns_geodataframe(self, mock_read_sql, mock_env_vars):
+    @patch("src.db.gpd.read_postgis")
+    def test_cargar_datos_returns_geodataframe(self, mock_read_postgis, mock_env_vars):
         """Test that cargar_datos returns a GeoDataFrame."""
         from src.db import cargar_datos
         import geopandas as gpd
-        
-        # Mock the SQL query result
-        mock_df = {
-            "MPIO_CCDGO": ["76001"],
-            "MPIO_CNMBR": ["Cali"],
-            "año": [2023],
-            "población": [2250000],
-            "conteo_dengue": [1250],
-            "incidencia_dengue": [55.5],
-        }
-        mock_read_sql.return_value = mock_df
-        
-        mock_engine = Mock()
-        result = cargar_datos(mock_engine)
-        
-        # Should call read_sql
-        mock_read_sql.assert_called_once()
+        from shapely.geometry import Point
+
+        mock_gdf = gpd.GeoDataFrame(
+            {
+                "MPIO_CCDGO": ["76001"],
+                "MPIO_CNMBR": ["Cali"],
+                "año": [2023],
+                "población": [2250000],
+                "conteo_dengue": [1250.0],
+                "incidencia_dengue": [55.5],
+                "geom": [Point(0, 0)],
+            },
+            geometry="geom",
+        )
+        mock_read_postgis.return_value = mock_gdf
+
+        result = cargar_datos(Mock())
+
+        assert isinstance(result, gpd.GeoDataFrame)
+        mock_read_postgis.assert_called_once()
 
 
 class TestCargarPuntosCalor:

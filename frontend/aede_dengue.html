@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEDE — Dengue Valle del Cauca</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060a12;--bg-card:#0c1221;--bg-card2:#111827;
+  --border:#162038;--border2:#1c2d4a;
+  --accent:#3b82f6;--accent2:#22d3ee;--accent3:#34d399;
+  --warn:#fbbf24;--danger:#f87171;
+  --text:#e2e8f8;--text2:#94a3b8;--text3:#3d5575;
+  --font:'Space Grotesk',sans-serif;--mono:'JetBrains Mono',monospace;
+  --r:10px;--rsm:6px;
+  --hh:#d73027;--ll:#4575b4;--hl:#f46d43;--lh:#abd9e9;--ns:#334155;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font);overflow:hidden}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 50%,rgba(59,130,246,.06) 0%,transparent 60%),radial-gradient(ellipse at 80% 20%,rgba(34,211,238,.04) 0%,transparent 50%);pointer-events:none;z-index:0}
+
+/* ── Layout ─────────────────────────────────────────────────────────────── */
+#app{display:flex;flex-direction:column;height:100vh;position:relative;z-index:1}
+header{display:flex;align-items:center;gap:16px;padding:0 24px;height:56px;border-bottom:1px solid var(--border);background:rgba(6,10,18,.9);backdrop-filter:blur(12px);flex-shrink:0}
+header h1{font-size:15px;font-weight:600;letter-spacing:.02em}
+header span{font-size:12px;color:var(--text2);font-family:var(--mono)}
+.year-btns{display:flex;gap:6px;margin-left:auto}
+.year-btn{padding:4px 12px;border-radius:20px;border:1px solid var(--border2);background:transparent;color:var(--text2);font-size:12px;cursor:pointer;font-family:var(--font);transition:all .2s}
+.year-btn:hover{border-color:var(--accent);color:var(--text)}
+.year-btn.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ────────────────────────────────────────────────────────────── */
+#sidebar{width:300px;flex-shrink:0;overflow-y:auto;border-right:1px solid var(--border);background:var(--bg-card);padding:16px;display:flex;flex-direction:column;gap:14px}
+#sidebar::-webkit-scrollbar{width:4px}
+#sidebar::-webkit-scrollbar-thumb{background:var(--border2);border-radius:4px}
+
+.card{background:var(--bg-card2);border:1px solid var(--border);border-radius:var(--r);padding:14px}
+.card-title{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);margin-bottom:10px}
+
+/* KPIs */
+.kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.kpi{background:var(--bg);border:1px solid var(--border);border-radius:var(--rsm);padding:10px 12px}
+.kpi-val{font-size:22px;font-weight:700;font-family:var(--mono);line-height:1}
+.kpi-lbl{font-size:10px;color:var(--text2);margin-top:3px}
+.kpi.sig .kpi-val{color:var(--accent3)}
+.kpi.ns  .kpi-val{color:var(--text2)}
+.kpi.danger .kpi-val{color:var(--danger)}
+
+/* Moran badge */
+.moran-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)}
+.moran-row:last-child{border-bottom:none}
+.moran-year{font-family:var(--mono);font-size:12px;width:36px;color:var(--text2)}
+.moran-bar-wrap{flex:1;background:var(--border);border-radius:4px;height:8px;position:relative}
+.moran-bar{height:8px;border-radius:4px;transition:width .4s}
+.moran-val{font-family:var(--mono);font-size:11px;width:54px;text-align:right}
+.moran-sig{width:16px;text-align:center;font-size:10px}
+
+/* LISA legend */
+.lisa-legend{display:flex;flex-direction:column;gap:6px}
+.lisa-item{display:flex;align-items:center;gap:8px;font-size:12px}
+.lisa-dot{width:12px;height:12px;border-radius:3px;flex-shrink:0}
+
+/* Ranking */
+.rank-list{display:flex;flex-direction:column;gap:4px;max-height:220px;overflow-y:auto}
+.rank-list::-webkit-scrollbar{width:3px}
+.rank-list::-webkit-scrollbar-thumb{background:var(--border2)}
+.rank-row{display:flex;align-items:center;gap:8px;padding:4px 6px;border-radius:var(--rsm);cursor:pointer;transition:background .15s}
+.rank-row:hover{background:var(--border)}
+.rank-n{font-family:var(--mono);font-size:10px;color:var(--text3);width:18px}
+.rank-name{flex:1;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-val{font-family:var(--mono);font-size:11px;color:var(--accent2)}
+.rank-badge{font-size:9px;font-weight:700;padding:1px 5px;border-radius:10px;color:#fff}
+
+/* ── Content area ─────────────────────────────────────────────────────────── */
+#content{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 220px;gap:1px;background:var(--border);overflow:hidden}
+.panel{background:var(--bg-card);overflow:hidden;position:relative}
+.panel-title{position:absolute;top:10px;left:12px;z-index:20;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--text2);background:rgba(12,18,33,.85);padding:4px 10px;border-radius:20px;border:1px solid var(--border)}
+
+/* Maps */
+.map-wrap{width:100%;height:100%}
+.leaflet-container{background:#060a12!important}
+.leaflet-control-zoom a{background:var(--bg-card2)!important;border-color:var(--border)!important;color:var(--text)!important}
+
+/* Charts */
+#moran-scatter-wrap,#moran-hist-wrap{width:100%;height:100%;padding:40px 16px 16px;position:relative}
+canvas{max-width:100%;max-height:100%}
+
+/* Tooltip */
+#tip{position:fixed;pointer-events:none;background:rgba(12,18,33,.95);border:1px solid var(--border2);border-radius:var(--r);padding:10px 14px;font-size:12px;z-index:9999;display:none;min-width:180px;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+#tip .tip-name{font-weight:600;margin-bottom:6px;font-size:13px}
+#tip .tip-row{display:flex;justify-content:space-between;gap:16px;color:var(--text2);margin-top:2px}
+#tip .tip-row span:last-child{color:var(--text);font-family:var(--mono)}
+#tip .tip-badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;color:#fff;margin-top:4px}
+
+/* Scatterplot point tooltip */
+.scatter-tip{position:absolute;pointer-events:none;background:rgba(12,18,33,.9);border:1px solid var(--border2);border-radius:6px;padding:6px 10px;font-size:11px;display:none;z-index:30}
+
+/* Mode selector */
+.map-mode{position:absolute;top:10px;right:10px;z-index:20;display:flex;gap:4px}
+.mode-btn{padding:3px 10px;border-radius:20px;border:1px solid var(--border2);background:rgba(12,18,33,.85);color:var(--text2);font-size:10px;cursor:pointer;font-family:var(--font);transition:all .15s}
+.mode-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* Color scale bar */
+.scale-bar{position:absolute;bottom:14px;right:14px;z-index:20;background:rgba(12,18,33,.85);border:1px solid var(--border);border-radius:var(--rsm);padding:8px 12px;font-size:10px}
+.scale-gradient{height:8px;border-radius:4px;margin-bottom:4px}
+.scale-labels{display:flex;justify-content:space-between;color:var(--text2);font-family:var(--mono);font-size:9px}
+
+/* No-sig overlay */
+.ns-label{font-size:9px;color:var(--text3)}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- ── Header ───────────────────────────────────────────────────────────── -->
+  <header>
+    <div style="width:8px;height:8px;border-radius:50%;background:var(--accent3)"></div>
+    <h1>AEDE · Dengue Valle del Cauca</h1>
+    <span id="hdr-sub">Análisis Exploratorio de Datos Espaciales</span>
+    <div class="year-btns" id="year-btns"></div>
+  </header>
+
+  <div id="main">
+    <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+    <div id="sidebar">
+
+      <!-- KPIs Moran -->
+      <div class="card">
+        <div class="card-title">Moran Global</div>
+        <div class="kpi-grid">
+          <div class="kpi" id="kpi-I">
+            <div class="kpi-val" id="val-I">—</div>
+            <div class="kpi-lbl">Índice I</div>
+          </div>
+          <div class="kpi" id="kpi-p">
+            <div class="kpi-val" id="val-p">—</div>
+            <div class="kpi-lbl">p-valor</div>
+          </div>
+          <div class="kpi" id="kpi-z">
+            <div class="kpi-val" id="val-z">—</div>
+            <div class="kpi-lbl">Z-score</div>
+          </div>
+          <div class="kpi" id="kpi-sig">
+            <div class="kpi-val" id="val-sig">—</div>
+            <div class="kpi-lbl">Autocorrelación</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Evolución temporal -->
+      <div class="card">
+        <div class="card-title">Evolución Moran I por año</div>
+        <div id="moran-timeline"></div>
+      </div>
+
+      <!-- Leyenda LISA -->
+      <div class="card">
+        <div class="card-title">Clusters LISA (p &lt; 0.05)</div>
+        <div class="lisa-legend">
+          <div class="lisa-item"><div class="lisa-dot" style="background:var(--hh)"></div><div><strong>HH</strong> — Alto·Alto <span id="cnt-HH" style="color:var(--text2);font-size:10px"></span></div></div>
+          <div class="lisa-item"><div class="lisa-dot" style="background:var(--ll)"></div><div><strong>LL</strong> — Bajo·Bajo <span id="cnt-LL" style="color:var(--text2);font-size:10px"></span></div></div>
+          <div class="lisa-item"><div class="lisa-dot" style="background:var(--hl)"></div><div><strong>HL</strong> — Alto·Bajo <span id="cnt-HL" style="color:var(--text2);font-size:10px"></span></div></div>
+          <div class="lisa-item"><div class="lisa-dot" style="background:var(--lh)"></div><div><strong>LH</strong> — Bajo·Alto <span id="cnt-LH" style="color:var(--text2);font-size:10px"></span></div></div>
+          <div class="lisa-item"><div class="lisa-dot" style="background:var(--ns)"></div><div><strong>NS</strong> — No significativo <span id="cnt-NS" style="color:var(--text2);font-size:10px"></span></div></div>
+        </div>
+      </div>
+
+      <!-- Ranking -->
+      <div class="card">
+        <div class="card-title">Top municipios — Incidencia x100k</div>
+        <div class="rank-list" id="rank-list"></div>
+      </div>
+
+    </div><!-- /sidebar -->
+
+    <!-- ── Content ────────────────────────────────────────────────────────── -->
+    <div id="content">
+
+      <!-- Mapa 1: Coroplético incidencia -->
+      <div class="panel">
+        <div class="panel-title">Incidencia x 100k hab</div>
+        <div class="map-wrap" id="map-choro"></div>
+        <div class="scale-bar" id="scale-choro">
+          <div class="scale-gradient" id="scale-grad" style="width:140px;background:linear-gradient(to right,#ffffcc,#fd8d3c,#800026)"></div>
+          <div class="scale-labels"><span id="sc-min">0</span><span id="sc-max">—</span></div>
+        </div>
+      </div>
+
+      <!-- Mapa 2: Clusters LISA -->
+      <div class="panel">
+        <div class="panel-title">Clusters LISA</div>
+        <div class="map-wrap" id="map-lisa"></div>
+      </div>
+
+      <!-- Scatter Moran -->
+      <div class="panel" style="position:relative">
+        <div class="panel-title">Diagrama de dispersión de Moran</div>
+        <div id="moran-scatter-wrap">
+          <canvas id="moran-scatter"></canvas>
+        </div>
+        <div class="scatter-tip" id="scatter-tip"></div>
+      </div>
+
+      <!-- Histograma sim -->
+      <div class="panel">
+        <div class="panel-title">Distribución de referencia (999 sim)</div>
+        <div id="moran-hist-wrap">
+          <canvas id="moran-hist"></canvas>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<div id="tip"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="aede_data.js"></script>
+<script>
+// ─── Constantes ──────────────────────────────────────────────────────────────
+const LISA_COLORS = { HH:'#d73027', LL:'#4575b4', HL:'#f46d43', LH:'#abd9e9', NS:'#334155' };
+const LISA_BORDER = { HH:'#a50026', LL:'#2c4b8e', HL:'#d4522a', LH:'#6aa8c8', NS:'#1e3048' };
+const CHORO_COLORS = ['#ffffb2','#fed976','#feb24c','#fd8d3c','#f03b20','#bd0026'];
+
+let ANIO_SEL = AEDE.anios[AEDE.anios.length - 1];
+let mapChoro = null, mapLisa = null;
+let layerChoro = null, layerLisa = null;
+let scatterChart = null, histChart = null;
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function choroCss(val, min, max) {
+  const t = Math.min(1, Math.max(0, (val - min) / (max - min)));
+  const idx = Math.floor(t * (CHORO_COLORS.length - 1));
+  return CHORO_COLORS[idx];
+}
+
+function fmt(n, d=1) { return n == null ? '—' : (+n).toLocaleString('es-CO',{maximumFractionDigits:d}); }
+
+// ─── Init mapas ───────────────────────────────────────────────────────────────
+function initMaps() {
+  const opts = {
+    center: [3.85, -76.5], zoom: 8,
+    zoomControl: true, attributionControl: false,
+    preferCanvas: true
+  };
+
+  mapChoro = L.map('map-choro', opts);
+  mapLisa  = L.map('map-lisa',  {...opts, zoomControl: false});
+
+  // Sync zoom/pan
+  mapChoro.on('moveend', () => mapLisa.setView(mapChoro.getCenter(), mapChoro.getZoom(), {animate:false}));
+  mapLisa.on('moveend',  () => mapChoro.setView(mapLisa.getCenter(),  mapLisa.getZoom(),  {animate:false}));
+
+  // Tile oscuro
+  const tile = (m) => L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png',
+    {subdomains:'abcd', maxZoom:19}).addTo(m);
+  tile(mapChoro); tile(mapLisa);
+}
+
+// ─── Capas Leaflet ─────────────────────────────────────────────────────────────
+function buildLayers(anio) {
+  const d   = AEDE.resultados[String(anio)];
+  const mpios = d.municipios;
+  const vals  = mpios.map(m => m.incidencia);
+  const minV  = Math.min(...vals), maxV = Math.max(...vals);
+
+  // Actualizar escala
+  document.getElementById('sc-min').textContent = fmt(minV,0);
+  document.getElementById('sc-max').textContent = fmt(maxV,0);
+
+  // Mapa código → datos
+  const byCode = {};
+  mpios.forEach(m => byCode[m.codigo] = m);
+
+  if (layerChoro) { mapChoro.removeLayer(layerChoro); }
+  if (layerLisa)  { mapLisa.removeLayer(layerLisa);   }
+
+  // ── Coroplético ──────────────────────────────────────────────────────────
+  layerChoro = L.geoJSON(AEDE.geojson, {
+    style: feat => {
+      const m = byCode[feat.properties.mpio_ccdgo_full];
+      const v = m ? m.incidencia : 0;
+      return { fillColor: choroCss(v,minV,maxV), fillOpacity:.85, weight:1, color:'rgba(255,255,255,.35)' };
+    },
+    onEachFeature: (feat, layer) => {
+      const m = byCode[feat.properties.mpio_ccdgo_full];
+      if (!m) return;
+      layer.on({
+        mousemove: e => showTip(e, m),
+        mouseout:  () => hideTip(),
+        click: () => { mapChoro.fitBounds(layer.getBounds(), {padding:[20,20]}); }
+      });
+    }
+  }).addTo(mapChoro);
+
+  // ── LISA ─────────────────────────────────────────────────────────────────
+  layerLisa = L.geoJSON(AEDE.geojson, {
+    style: feat => {
+      const m = byCode[feat.properties.mpio_ccdgo_full];
+      const cl = m ? m.lisa : 'NS';
+      return { fillColor: LISA_COLORS[cl], fillOpacity: cl === 'NS' ? .45 : .85,
+               weight: 1.2, color: LISA_BORDER[cl] };
+    },
+    onEachFeature: (feat, layer) => {
+      const m = byCode[feat.properties.mpio_ccdgo_full];
+      if (!m) return;
+      layer.on({
+        mousemove: e => showTip(e, m, true),
+        mouseout:  () => hideTip(),
+        click: () => { mapLisa.fitBounds(layer.getBounds(), {padding:[20,20]}); }
+      });
+    }
+  }).addTo(mapLisa);
+}
+
+// ─── Tooltip ──────────────────────────────────────────────────────────────────
+const tip = document.getElementById('tip');
+function showTip(e, m, showLisa=false) {
+  const cl = m.lisa;
+  const badgeBg = LISA_COLORS[cl];
+  tip.style.display = 'block';
+  tip.style.left = (e.originalEvent.clientX + 14) + 'px';
+  tip.style.top  = (e.originalEvent.clientY - 10) + 'px';
+  tip.innerHTML = `
+    <div class="tip-name">${m.nombre}</div>
+    <div class="tip-row"><span>Incidencia x100k</span><span>${fmt(m.incidencia)}</span></div>
+    <div class="tip-row"><span>Casos</span><span>${m.casos.toLocaleString('es-CO')}</span></div>
+    <div class="tip-row"><span>Población</span><span>${m.poblacion.toLocaleString('es-CO')}</span></div>
+    ${showLisa ? `
+    <div class="tip-row"><span>Cluster LISA</span><span>${cl}</span></div>
+    <div class="tip-row"><span>Moran Ii</span><span>${fmt(m.lisa_I,3)}</span></div>
+    <div class="tip-row"><span>p-valor</span><span>${fmt(m.lisa_p,3)}</span></div>
+    <div><span class="tip-badge" style="background:${badgeBg};margin-top:6px">${cl}</span></div>` : ''}
+  `;
+}
+function hideTip() { tip.style.display = 'none'; }
+
+// ─── Sidebar KPIs ─────────────────────────────────────────────────────────────
+function updateKPIs(anio) {
+  const d = AEDE.resultados[String(anio)];
+  const m = d.moran;
+
+  document.getElementById('val-I').textContent = m.I.toFixed(4);
+  document.getElementById('val-p').textContent = m.p.toFixed(3);
+  document.getElementById('val-z').textContent = m.z.toFixed(3);
+  document.getElementById('val-sig').textContent = m.sig ? (m.I > 0 ? '+' : '−') : 'NS';
+
+  const kpiI = document.getElementById('kpi-I');
+  const kpiS = document.getElementById('kpi-sig');
+  kpiI.className = 'kpi ' + (m.sig ? (m.I > 0 ? 'sig' : 'danger') : 'ns');
+  kpiS.className = 'kpi ' + (m.sig ? (m.I > 0 ? 'sig' : 'danger') : 'ns');
+
+  // Cluster counts
+  const counts = { HH:0, LL:0, HL:0, LH:0, NS:0 };
+  d.municipios.forEach(m => counts[m.lisa]++);
+  Object.keys(counts).forEach(k => {
+    const el = document.getElementById(`cnt-${k}`);
+    if (el) el.textContent = `(${counts[k]})`;
+  });
+}
+
+// ─── Ranking ──────────────────────────────────────────────────────────────────
+function updateRanking(anio) {
+  const mpios = [...AEDE.resultados[String(anio)].municipios]
+    .sort((a,b) => b.incidencia - a.incidencia);
+  const list = document.getElementById('rank-list');
+  list.innerHTML = mpios.map((m, i) => `
+    <div class="rank-row">
+      <span class="rank-n">${i+1}</span>
+      <span class="rank-name">${m.nombre}</span>
+      <span class="rank-val">${fmt(m.incidencia)}</span>
+      ${m.lisa !== 'NS' ? `<span class="rank-badge" style="background:${LISA_COLORS[m.lisa]}">${m.lisa}</span>` : ''}
+    </div>
+  `).join('');
+}
+
+// ─── Timeline Moran ──────────────────────────────────────────────────────────
+function buildTimeline() {
+  const el = document.getElementById('moran-timeline');
+  const maxAbs = Math.max(...AEDE.moran_serie.map(r => Math.abs(r.I)));
+  el.innerHTML = AEDE.moran_serie.map(r => {
+    const pct = Math.round(Math.abs(r.I) / maxAbs * 100);
+    const col = r.sig ? (r.I > 0 ? '#34d399' : '#f87171') : '#3d5575';
+    const sigMark = r.sig ? '●' : '○';
+    return `
+      <div class="moran-row" style="cursor:pointer" onclick="selectYear(${r.año})">
+        <span class="moran-year">${r.año}</span>
+        <div class="moran-bar-wrap">
+          <div class="moran-bar" style="width:${pct}%;background:${col}"></div>
+        </div>
+        <span class="moran-val" style="color:${col}">${r.I.toFixed(3)}</span>
+        <span class="moran-sig" style="color:${r.sig?col:'var(--text3)'}">${sigMark}</span>
+      </div>`;
+  }).join('');
+}
+
+// ─── Scatter Moran (Chart.js) ─────────────────────────────────────────────────
+function buildScatter(anio) {
+  const mpios = AEDE.resultados[String(anio)].municipios;
+  const vals  = mpios.map(m => m.incidencia);
+  const mean  = vals.reduce((a,b)=>a+b,0)/vals.length;
+  const std   = Math.sqrt(vals.map(v=>(v-mean)**2).reduce((a,b)=>a+b,0)/vals.length);
+  const zvals = vals.map(v => (v-mean)/std);
+
+  const points = mpios.map((m,i) => ({
+    x: parseFloat(zvals[i].toFixed(3)),
+    y: parseFloat(((m.lag - mean)/std).toFixed(3)),
+    nombre: m.nombre, lisa: m.lisa,
+    inc: m.incidencia
+  }));
+
+  const datasets = ['HH','LL','HL','LH','NS'].map(cl => ({
+    label: cl,
+    data: points.filter(p=>p.lisa===cl),
+    backgroundColor: LISA_COLORS[cl]+'cc',
+    borderColor: LISA_COLORS[cl],
+    borderWidth: 1,
+    pointRadius: cl==='NS' ? 5 : 7,
+    pointHoverRadius: 9,
+  }));
+
+  const ctx = document.getElementById('moran-scatter').getContext('2d');
+  if (scatterChart) scatterChart.destroy();
+  scatterChart = new Chart(ctx, {
+    type: 'scatter',
+    data: { datasets },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: {
+        legend: { labels:{ color:'#94a3b8', font:{size:10}, boxWidth:10 } },
+        tooltip: {
+          callbacks: {
+            label: ctx => `${ctx.raw.nombre}: z=${ctx.raw.x.toFixed(2)} Wz=${ctx.raw.y.toFixed(2)}`
+          },
+          backgroundColor:'rgba(12,18,33,.95)',
+          borderColor:'#1c2d4a', borderWidth:1,
+          titleColor:'#e2e8f8', bodyColor:'#94a3b8'
+        }
+      },
+      scales: {
+        x: { title:{display:true,text:'Incidencia estandarizada (z)',color:'#94a3b8',font:{size:10}},
+             grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#94a3b8',font:{size:9}},
+             border:{color:'rgba(255,255,255,.08)'}},
+        y: { title:{display:true,text:'Lag espacial (Wz)',color:'#94a3b8',font:{size:10}},
+             grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#94a3b8',font:{size:9}},
+             border:{color:'rgba(255,255,255,.08)'}}
+      },
+      animation: { duration:300 }
+    }
+  });
+
+  // Líneas de cuadrante
+  scatterChart.options.plugins.annotation = {};
+
+  // Líneas cruzadas manuales como plugin afterDraw
+  Chart.register({
+    id: 'quadrant-lines',
+    afterDraw(chart) {
+      const {ctx, chartArea:{left,right,top,bottom}, scales:{x,y}} = chart;
+      const x0 = x.getPixelForValue(0), y0 = y.getPixelForValue(0);
+      ctx.save();
+      ctx.setLineDash([4,4]);
+      ctx.strokeStyle = 'rgba(255,255,255,.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(x0,top); ctx.lineTo(x0,bottom); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(left,y0); ctx.lineTo(right,y0); ctx.stroke();
+      const labels = [['HH',1,1],['LH',-1,1],['LL',-1,-1],['HL',1,-1]];
+      ctx.font = 'bold 10px Space Grotesk, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,.2)';
+      labels.forEach(([lbl,sx,sy]) => {
+        const px = sx>0 ? x0+12 : x0-26, py = sy>0 ? y0-10 : y0+18;
+        ctx.fillText(lbl,px,py);
+      });
+      ctx.restore();
+    }
+  });
+}
+
+// ─── Histograma permutaciones ────────────────────────────────────────────────
+function buildHist(anio) {
+  const d   = AEDE.resultados[String(anio)];
+  const sim = d.sim;
+  const Iobs = d.moran.I;
+
+  // Bins
+  const BINS = 30;
+  const minS = Math.min(...sim), maxS = Math.max(...sim);
+  const bw = (maxS - minS) / BINS;
+  const counts = new Array(BINS).fill(0);
+  sim.forEach(v => { const i = Math.min(BINS-1, Math.floor((v-minS)/bw)); counts[i]++; });
+  const labels = counts.map((_,i) => (minS + i*bw + bw/2).toFixed(3));
+
+  const bgColors = labels.map(l => {
+    const v = parseFloat(l);
+    return Math.abs(v - Iobs) < bw ? 'rgba(248,113,113,.9)' : 'rgba(148,163,184,.35)';
+  });
+
+  const ctx = document.getElementById('moran-hist').getContext('2d');
+  if (histChart) histChart.destroy();
+  histChart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [
+        { label: 'Simulaciones', data: counts, backgroundColor: 'rgba(148,163,184,.35)',
+          borderColor: 'rgba(148,163,184,.5)', borderWidth: 0.5 },
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          callbacks: { title: ctx => `I ≈ ${ctx[0].label}`, label: ctx => `${ctx.raw} simulaciones` },
+          backgroundColor:'rgba(12,18,33,.95)', borderColor:'#1c2d4a', borderWidth:1,
+          titleColor:'#e2e8f8', bodyColor:'#94a3b8'
+        },
+        annotation: {}
+      },
+      scales: {
+        x: { display:false },
+        y: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'#94a3b8',font:{size:9}},
+             border:{color:'rgba(255,255,255,.08)'} }
+      },
+      animation: { duration:300 }
+    }
+  });
+
+  // Línea I observado
+  Chart.register({
+    id: 'iobs-line',
+    afterDraw(chart) {
+      const {ctx: c, chartArea:{top,bottom}, scales:{x}} = chart;
+      const iBin = Math.min(BINS-1, Math.max(0, Math.floor((Iobs - minS) / bw)));
+      const px = x.getPixelForValue(iBin);
+      c.save();
+      c.strokeStyle = '#f87171'; c.lineWidth = 2;
+      c.setLineDash([5,3]);
+      c.beginPath(); c.moveTo(px,top); c.lineTo(px,bottom); c.stroke();
+      c.fillStyle = '#f87171'; c.font = 'bold 10px monospace';
+      c.fillText(`I=${Iobs.toFixed(3)}`, px+4, top+14);
+      c.restore();
+    }
+  });
+}
+
+// ─── Year buttons ────────────────────────────────────────────────────────────
+function buildYearBtns() {
+  const wrap = document.getElementById('year-btns');
+  AEDE.anios.forEach(a => {
+    const b = document.createElement('button');
+    b.className = 'year-btn' + (a===ANIO_SEL ? ' active' : '');
+    b.textContent = a;
+    b.onclick = () => selectYear(a);
+    wrap.appendChild(b);
+  });
+}
+
+function selectYear(a) {
+  ANIO_SEL = a;
+  document.querySelectorAll('.year-btn').forEach(b => {
+    b.classList.toggle('active', +b.textContent === a);
+  });
+  buildLayers(a);
+  updateKPIs(a);
+  updateRanking(a);
+  buildScatter(a);
+  buildHist(a);
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  initMaps();
+  buildYearBtns();
+  buildTimeline();
+  selectYear(ANIO_SEL);
+});
+</script>
+</body>
+</html>

@@ -1,12 +1,7 @@
 """Tests for src/pipeline.py module."""
 
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from pathlib import Path
-import sys
-
-# Add src to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent))
+from unittest.mock import Mock, patch
 
 
 class TestPipelineExecution:

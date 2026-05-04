@@ -9,8 +9,12 @@ warnings.filterwarnings("ignore")
 import pandas as pd
 from pathlib import Path
 
-from neuralprophet import NeuralProphet, set_log_level
-set_log_level("ERROR")
+
+def _get_neuralprophet():
+    """Lazy import — evita cargar PyTorch/NeuralProphet al importar el módulo."""
+    from neuralprophet import NeuralProphet, set_log_level  # noqa: PLC0415
+    set_log_level("ERROR")
+    return NeuralProphet
 
 
 def _semana_a_fecha(anio: int, semana: int) -> pd.Timestamp:
@@ -55,7 +59,8 @@ def cargar_serie_semanal(engine, mpio_ccdgo: str = None) -> pd.DataFrame:
     return df[["mpio_ccdgo", "ds", "y"]]
 
 
-def _construir_modelo(accelerator: str = "gpu") -> NeuralProphet:
+def _construir_modelo(accelerator: str = "gpu"):
+    NeuralProphet = _get_neuralprophet()
     return NeuralProphet(
         n_forecasts=1,
         n_lags=52,
