@@ -69,7 +69,7 @@ observatorio_geosalud/
 ### 1. Clonar y configurar
 
 ```bash
-git clone https://github.com/germanavila09/Observatorio-GeoSalud.git
+git clone https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca.git
 cd observatorio_geosalud
 
 # Copiar template de configuración

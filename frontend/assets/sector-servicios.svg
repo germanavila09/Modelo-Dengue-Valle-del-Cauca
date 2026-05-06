@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Servicios publicos y redes geoespaciales">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#e0f2fe"/>
+      <stop offset="1" stop-color="#ccfbf1"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <g stroke="#0f9f9a" stroke-width="12" stroke-linecap="round" fill="none" opacity=".75">
+    <path d="M132 402h196V260h210V142h196"/>
+    <path d="M328 260v172h196v-88h210"/>
+    <path d="M538 142v270"/>
+  </g>
+  <g fill="#ffffff" stroke="#0f9f9a" stroke-width="8">
+    <rect x="80" y="362" width="104" height="80" rx="14"/>
+    <rect x="276" y="218" width="104" height="84" rx="14"/>
+    <rect x="486" y="100" width="104" height="84" rx="14"/>
+    <rect x="682" y="102" width="104" height="82" rx="14"/>
+    <rect x="682" y="304" width="104" height="82" rx="14"/>
+    <rect x="472" y="388" width="104" height="82" rx="14"/>
+  </g>
+  <path d="M118 402h28M314 260h28M524 142h28M720 143h28M720 345h28M510 430h28" stroke="#14213d" stroke-width="10" stroke-linecap="round"/>
+  <path d="M164 180c42-76 102-115 180-118 67-3 117 20 150 70" fill="none" stroke="#1463ff" stroke-width="10" stroke-linecap="round" opacity=".36"/>
+  <path d="M182 220c34-47 78-72 132-75 50-2 90 14 120 48" fill="none" stroke="#1463ff" stroke-width="10" stroke-linecap="round" opacity=".36"/>
+</svg>

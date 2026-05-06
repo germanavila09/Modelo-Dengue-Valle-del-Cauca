@@ -28,6 +28,7 @@ notebooks/*.html
 # IDEs
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

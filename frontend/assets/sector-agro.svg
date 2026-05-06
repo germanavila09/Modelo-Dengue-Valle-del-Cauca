@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Informacion geoespacial para agro y ruralidad">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fef3c7"/>
+      <stop offset="1" stop-color="#dcfce7"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <g opacity=".9">
+    <path d="M0 408c100-48 200-48 300 0s200 48 300 0 200-48 300 0v152H0z" fill="#c98b22" opacity=".32"/>
+    <path d="M0 462c100-48 200-48 300 0s200 48 300 0 200-48 300 0v98H0z" fill="#2a9d66" opacity=".34"/>
+  </g>
+  <g stroke="#8b6a20" stroke-width="5" opacity=".32">
+    <path d="M40 428h820M28 482h844M80 378c34 60 34 120 0 180M180 374c38 64 38 126 0 186M280 384c34 56 34 114 0 174M380 374c38 64 38 126 0 186M480 384c34 56 34 114 0 174M580 374c38 64 38 126 0 186M680 384c34 56 34 114 0 174M780 374c38 64 38 126 0 186"/>
+  </g>
+  <circle cx="692" cy="138" r="58" fill="#f6c96e"/>
+  <path d="M248 332c-8-84 24-151 96-200 72 49 104 116 96 200-70 24-134 24-192 0z" fill="#2a9d66"/>
+  <path d="M344 132v258" stroke="#176f57" stroke-width="12" stroke-linecap="round"/>
+  <path d="M344 234c-54-52-109-74-166-64 18 71 73 106 166 104zM344 272c62-61 127-89 194-84-25 81-90 121-194 120z" fill="#46b879"/>
+  <rect x="548" y="304" width="144" height="96" rx="12" fill="#ffffff" opacity=".95"/>
+  <path d="M572 362h96M572 334h64" stroke="#c98b22" stroke-width="12" stroke-linecap="round"/>
+</svg>

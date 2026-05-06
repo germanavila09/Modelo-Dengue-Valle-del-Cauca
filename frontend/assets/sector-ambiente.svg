@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Monitoreo ambiental geoespacial">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#dcfce7"/>
+      <stop offset="1" stop-color="#e0f2fe"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <path d="M0 394c68-66 142-87 222-64 79 23 134 87 233 64 88-20 129-89 226-88 77 1 146 42 219 110v144H0z" fill="#2a9d66" opacity=".24"/>
+  <path d="M0 356c92-45 159-49 201-13 58 50 128 57 210 20 103-47 191-69 262-36 66 31 122 41 227 4v229H0z" fill="#0f9f9a" opacity=".2"/>
+  <path d="M124 410c130-75 245-69 344 18 83 74 205 69 308-16" fill="none" stroke="#176f57" stroke-width="11" stroke-linecap="round" opacity=".45"/>
+  <g fill="#2a9d66">
+    <path d="M296 260c-41-71-35-132 17-183 85 37 112 107 81 210-42-4-75-13-98-27z"/>
+    <path d="M534 242c20-88 76-137 168-147 42 77 23 146-58 206-43-16-80-36-110-59z"/>
+  </g>
+  <path d="M351 281c44 32 104 50 181 52" stroke="#176f57" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="228" cy="344" r="38" fill="#ffffff" opacity=".92"/>
+  <circle cx="228" cy="344" r="18" fill="#2a9d66"/>
+  <circle cx="694" cy="278" r="42" fill="#ffffff" opacity=".92"/>
+  <path d="M676 280l14 14 30-36" fill="none" stroke="#2a9d66" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

@@ -1,9 +1,19 @@
 import geopandas as gpd
 import pandas as pd
+import re
 from sqlalchemy import create_engine
 from sqlalchemy.engine import URL
 
 from .config import DB_CONFIG, SCHEMA, TABLE
+
+
+_IDENTIFIER_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
+def _quote_identifier(identifier):
+    if not _IDENTIFIER_RE.match(identifier):
+        raise ValueError(f"Identificador SQL inválido: {identifier!r}")
+    return f'"{identifier}"'
 
 
 def crear_engine():
@@ -22,6 +32,7 @@ def cargar_datos(engine=None):
     if engine is None:
         engine = crear_engine()
 
+    tabla = f"{_quote_identifier(SCHEMA)}.{_quote_identifier(TABLE)}"
     query = f"""
     SELECT
         "MPIO_CCDGO",
@@ -31,7 +42,7 @@ def cargar_datos(engine=None):
         conteo_dengue,
         incidencia_dengue,
         geom
-    FROM {SCHEMA}.{TABLE}
+    FROM {tabla}
     ORDER BY "año", "MPIO_CNMBR";
     """
 

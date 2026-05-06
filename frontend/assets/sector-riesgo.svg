@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Gestion geoespacial del riesgo">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff7ed"/>
+      <stop offset="1" stop-color="#fee2e2"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <path d="M0 428c85-62 166-77 244-46 58 23 101 65 174 62 98-4 155-88 253-78 79 8 144 61 229 106v88H0z" fill="#d04a3a" opacity=".18"/>
+  <path d="M94 462 304 112l210 350z" fill="#ffffff" stroke="#d04a3a" stroke-width="12" stroke-linejoin="round"/>
+  <path d="M304 220v112" stroke="#d04a3a" stroke-width="28" stroke-linecap="round"/>
+  <circle cx="304" cy="386" r="17" fill="#d04a3a"/>
+  <g fill="none" stroke="#8d3b30" stroke-width="9" stroke-linecap="round" opacity=".42">
+    <path d="M540 146c78 30 122 80 132 151"/>
+    <path d="M570 230c35 18 58 45 67 81"/>
+    <path d="M642 98c78 49 121 117 128 203"/>
+  </g>
+  <circle cx="704" cy="352" r="56" fill="#d04a3a" opacity=".88"/>
+  <path d="M680 352h48M704 328v48" stroke="#fff" stroke-width="12" stroke-linecap="round"/>
+</svg>

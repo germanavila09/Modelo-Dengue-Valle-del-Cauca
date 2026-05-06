@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistemas de Informacion Geoespacial para Decision Publica</title>
+  <link rel="stylesheet" href="platform.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="#inicio" aria-label="Inicio">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span>
+        <strong>GeoDecision</strong>
+        <small>Sistemas de informacion territorial</small>
+      </span>
+    </a>
+    <nav class="main-nav" aria-label="Navegacion principal">
+      <a href="#sectores">Sectores</a>
+      <a href="#potencial">Potencialidades</a>
+      <a href="#geosalud">GeoSalud</a>
+      <a href="#ruta">Ruta de trabajo</a>
+    </nav>
+    <a class="header-action" href="Geodata%20Salud.html">Abrir dashboard</a>
+  </header>
+
+  <main>
+    <section id="inicio" class="hero-section">
+      <canvas id="geo-scene" aria-hidden="true"></canvas>
+      <div class="hero-overlay"></div>
+      <div class="hero-content">
+        <p class="eyebrow">Analitica espacial aplicada</p>
+        <h1>Sistemas de informacion geoespacial para tomar mejores decisiones.</h1>
+        <p class="hero-copy">
+          Integramos datos, mapas, indicadores y modelos analiticos para convertir informacion territorial
+          en decisiones claras para salud publica, ambiente, movilidad, gestion del riesgo y planeacion.
+        </p>
+        <div class="hero-actions" aria-label="Acciones principales">
+          <a class="primary-link" href="#geosalud">Ver caso GeoSalud</a>
+          <a class="secondary-link" href="#sectores">Explorar sectores</a>
+        </div>
+      </div>
+      <aside class="signal-panel" aria-label="Resumen del sistema">
+        <div>
+          <span class="signal-label">Capas integradas</span>
+          <strong id="layer-count">7</strong>
+        </div>
+        <div>
+          <span class="signal-label">Escalas</span>
+          <strong>Municipal</strong>
+        </div>
+        <div>
+          <span class="signal-label">Salida</span>
+          <strong>Decision</strong>
+        </div>
+      </aside>
+    </section>
+
+    <section id="sectores" class="section-band sector-band">
+      <div class="section-heading">
+        <p class="eyebrow">Sectores de aplicacion</p>
+        <h2>Una misma arquitectura geografica puede responder preguntas distintas.</h2>
+      </div>
+        <div class="sector-layout">
+          <div class="sector-controls" role="tablist" aria-label="Seleccionar sector">
+          <button class="sector-btn active" type="button" data-sector="salud">
+            <img src="assets/sector-salud.svg" alt="">
+            <span>Salud publica</span>
+          </button>
+          <button class="sector-btn" type="button" data-sector="ambiente">
+            <img src="assets/sector-ambiente.svg" alt="">
+            <span>Ambiente</span>
+          </button>
+          <button class="sector-btn" type="button" data-sector="riesgo">
+            <img src="assets/sector-riesgo.svg" alt="">
+            <span>Gestion del riesgo</span>
+          </button>
+          <button class="sector-btn" type="button" data-sector="movilidad">
+            <img src="assets/sector-movilidad.svg" alt="">
+            <span>Movilidad</span>
+          </button>
+          <button class="sector-btn" type="button" data-sector="agro">
+            <img src="assets/sector-agro.svg" alt="">
+            <span>Agro y ruralidad</span>
+          </button>
+          <button class="sector-btn" type="button" data-sector="servicios">
+            <img src="assets/sector-servicios.svg" alt="">
+            <span>Servicios publicos</span>
+          </button>
+        </div>
+        <div class="sector-detail" id="sector-detail" aria-live="polite">
+          <div class="sector-map" aria-hidden="true">
+            <img id="sector-visual" class="sector-visual" src="assets/sector-salud.svg" alt="">
+            <div class="map-grid"></div>
+            <span class="map-node n1"></span>
+            <span class="map-node n2"></span>
+            <span class="map-node n3"></span>
+            <span class="map-node n4"></span>
+            <span class="map-route r1"></span>
+            <span class="map-route r2"></span>
+            <span class="map-zone z1"></span>
+            <span class="map-zone z2"></span>
+          </div>
+          <div class="sector-text">
+            <p class="sector-kicker" id="sector-kicker">Salud publica</p>
+            <h3 id="sector-title">Priorizar intervenciones con evidencia territorial.</h3>
+            <p id="sector-copy">
+              Cruza casos, poblacion, equipamientos, movilidad y condiciones ambientales para identificar
+              focos de riesgo y orientar acciones preventivas.
+            </p>
+            <ul id="sector-list">
+              <li>Deteccion de concentraciones espaciales.</li>
+              <li>Priorizacion municipal y barrial.</li>
+              <li>Seguimiento temporal de brotes e indicadores.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="potencial" class="section-band potential-band">
+      <div class="section-heading compact">
+        <p class="eyebrow">Potencialidades</p>
+        <h2>Del dato disperso a un sistema de decision.</h2>
+      </div>
+      <div class="capability-grid">
+        <article class="capability-card">
+          <span class="capability-swatch s-blue"></span>
+          <h3>Integracion de fuentes</h3>
+          <p>Bases institucionales, sensores, encuestas, datos abiertos, capas catastrales y registros operativos en una lectura comun.</p>
+        </article>
+        <article class="capability-card">
+          <span class="capability-swatch s-green"></span>
+          <h3>Analisis espacial</h3>
+          <p>Patrones, clusters, accesibilidad, zonas de influencia, cambios temporales y relaciones entre variables territoriales.</p>
+        </article>
+        <article class="capability-card">
+          <span class="capability-swatch s-red"></span>
+          <h3>Priorizacion</h3>
+          <p>Rankings, umbrales, alertas y escenarios para decidir donde intervenir primero y con que intensidad.</p>
+        </article>
+        <article class="capability-card">
+          <span class="capability-swatch s-gold"></span>
+          <h3>Comunicacion publica</h3>
+          <p>Dashboards, geovisores y reportes claros para equipos tecnicos, directivos y comunidades.</p>
+        </article>
+      </div>
+    </section>
+
+    <section id="geosalud" class="section-band geosalud-band">
+      <div class="case-copy">
+        <p class="eyebrow">Caso demostrativo</p>
+        <h2>Observatorio GeoSalud: dengue en Valle del Cauca.</h2>
+        <p>
+          El dashboard de GeoSalud muestra como una plataforma geoespacial puede reunir datos epidemiologicos,
+          indicadores municipales, priorizacion, tendencias y mapas interactivos para apoyar vigilancia y toma de decisiones.
+        </p>
+        <div class="case-actions">
+          <a class="primary-link dark" href="Geodata%20Salud.html">Abrir dashboard GeoSalud</a>
+          <a class="secondary-link dark" href="aede_dengue.html">Ver modulo AEDE</a>
+        </div>
+      </div>
+      <div class="dashboard-preview" aria-label="Vista previa conceptual del dashboard GeoSalud">
+        <div class="preview-sidebar">
+          <span></span><span></span><span></span><span></span>
+        </div>
+        <div class="preview-main">
+          <div class="preview-kpis">
+            <span></span><span></span><span></span>
+          </div>
+          <div class="preview-map">
+            <span class="preview-area a"></span>
+            <span class="preview-area b"></span>
+            <span class="preview-area c"></span>
+            <span class="preview-dot d1"></span>
+            <span class="preview-dot d2"></span>
+            <span class="preview-dot d3"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="ruta" class="section-band route-band">
+      <div class="section-heading compact">
+        <p class="eyebrow">Ruta de trabajo</p>
+        <h2>Construccion progresiva de observatorios geoespaciales.</h2>
+      </div>
+      <ol class="route-list">
+        <li>
+          <strong>Diagnostico de decision</strong>
+          <span>Definir actores, preguntas, indicadores y decisiones que el sistema debe soportar.</span>
+        </li>
+        <li>
+          <strong>Modelo de datos geografico</strong>
+          <span>Ordenar fuentes, calidad, periodicidad, escalas, geometrias y reglas de actualizacion.</span>
+        </li>
+        <li>
+          <strong>Analitica y visualizacion</strong>
+          <span>Crear tableros, geovisores, alertas, modelos y narrativas visuales para cada usuario.</span>
+        </li>
+        <li>
+          <strong>Operacion y mejora continua</strong>
+          <span>Automatizar cargas, documentar procesos y evolucionar el sistema con nuevas preguntas.</span>
+        </li>
+      </ol>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <span>GeoDecision - Desarrollo de sistemas de informacion geoespacial</span>
+    <a href="Geodata%20Salud.html">Dashboard GeoSalud</a>
+  </footer>
+
+  <script src="platform.js"></script>
+</body>
+</html>

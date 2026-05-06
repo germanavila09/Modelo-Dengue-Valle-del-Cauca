@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Analisis geoespacial de movilidad">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#eef2ff"/>
+      <stop offset="1" stop-color="#dbeafe"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#bg)"/>
+  <g stroke="#6c63b8" stroke-width="18" stroke-linecap="round" fill="none" opacity=".78">
+    <path d="M76 430c106-160 214-200 324-119 108 80 230 25 366-166"/>
+    <path d="M138 130c74 63 136 128 187 196 60 81 132 118 217 111 76-6 149-42 220-108"/>
+  </g>
+  <g stroke="#ffffff" stroke-width="5" stroke-dasharray="18 18" stroke-linecap="round" fill="none" opacity=".88">
+    <path d="M76 430c106-160 214-200 324-119 108 80 230 25 366-166"/>
+    <path d="M138 130c74 63 136 128 187 196 60 81 132 118 217 111 76-6 149-42 220-108"/>
+  </g>
+  <g fill="#ffffff" stroke="#6c63b8" stroke-width="9">
+    <circle cx="180" cy="388" r="34"/>
+    <circle cx="412" cy="316" r="34"/>
+    <circle cx="650" cy="228" r="34"/>
+  </g>
+  <path d="M566 390h96l46 54H514z" fill="#14213d" opacity=".86"/>
+  <circle cx="550" cy="454" r="20" fill="#14213d"/>
+  <circle cx="694" cy="454" r="20" fill="#14213d"/>
+  <path d="M598 348h58l36 42H562z" fill="#6c63b8"/>
+</svg>

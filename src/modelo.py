@@ -8,6 +8,7 @@ warnings.filterwarnings("ignore")
 
 import pandas as pd
 from pathlib import Path
+from sqlalchemy import text
 
 
 def _get_neuralprophet():
@@ -30,9 +31,10 @@ def cargar_serie_semanal(engine, mpio_ccdgo: str = None) -> pd.DataFrame:
     Agrega casos individuales de dengue_m en series semanales por municipio.
     Retorna columnas: mpio_ccdgo, ds (lunes de cada semana ISO), y (casos)
     """
-    filtro = f"AND mpio_ccdgo = '{mpio_ccdgo}'" if mpio_ccdgo else ""
+    filtro = "AND mpio_ccdgo = :mpio_ccdgo" if mpio_ccdgo else ""
+    params = {"mpio_ccdgo": mpio_ccdgo} if mpio_ccdgo else None
 
-    query = f"""
+    query = text(f"""
     SELECT
         mpio_ccdgo,
         año::int    AS anio,
@@ -43,9 +45,9 @@ def cargar_serie_semanal(engine, mpio_ccdgo: str = None) -> pd.DataFrame:
     {filtro}
     GROUP BY mpio_ccdgo, año, semana
     ORDER BY mpio_ccdgo, año, semana
-    """
+    """)
 
-    df = pd.read_sql(query, engine)
+    df = pd.read_sql(query, engine, params=params)
     df["ds"] = df.apply(lambda r: _semana_a_fecha(r["anio"], r["semana"]), axis=1)
     df = df.dropna(subset=["ds"])
     df["y"] = df["casos"].astype(float)

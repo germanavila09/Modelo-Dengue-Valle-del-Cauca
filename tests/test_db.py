@@ -78,6 +78,13 @@ class TestCargarDatos:
         assert isinstance(result, gpd.GeoDataFrame)
         mock_read_postgis.assert_called_once()
 
+    def test_quote_identifier_rejects_invalid_names(self):
+        """Test that SQL identifiers from config reject unsafe characters."""
+        from src.db import _quote_identifier
+
+        with pytest.raises(ValueError):
+            _quote_identifier("public; DROP TABLE valle_mun")
+
 
 class TestCargarPuntosCalor:
     """Test heat point data loading."""

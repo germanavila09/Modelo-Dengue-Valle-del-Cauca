@@ -13,7 +13,7 @@ Instrucciones paso-a-paso para instalar y configurar Observatorio GeoSalud en tu
 ## 1. Clonar el Repositorio
 
 ```bash
-git clone https://github.com/germanavila09/Observatorio-GeoSalud.git
+git clone https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca.git
 cd observatorio_geosalud
 ```
 
@@ -288,5 +288,5 @@ observatorio_geosalud/
 ## Soporte
 
 - 📧 Email: germanavila09@gmail.com
-- 🐛 Issues: [GitHub Issues](https://github.com/germanavila09/Observatorio-GeoSalud/issues)
-- 💬 Discussiones: [GitHub Discussions](https://github.com/germanavila09/Observatorio-GeoSalud/discussions)
+- 🐛 Issues: [GitHub Issues](https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues)
+- 💬 Discussiones: [GitHub Discussions](https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/discussions)

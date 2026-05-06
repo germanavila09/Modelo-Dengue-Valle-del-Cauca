@@ -163,8 +163,8 @@ observatorio_geosalud/
 | **Referencia API** | [API.md](API.md) |
 | **Desarrollo** | [README.md](../README.md#-desarrollo) |
 | **Troubleshooting** | [SETUP.md](SETUP.md#troubleshooting) |
-| **GitHub** | https://github.com/germanavila09/Observatorio-GeoSalud |
-| **Issues** | https://github.com/germanavila09/Observatorio-GeoSalud/issues |
+| **GitHub** | https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca |
+| **Issues** | https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues |
 
 ---
 
@@ -201,15 +201,15 @@ Dashboard HTML (Leaflet.js) con:
 Sí. Ver [ARCHITECTURE.md](ARCHITECTURE.md) — Sección **7. Extensibilidad** para agregar nuevas funciones.
 
 ### ¿Cómo reporte bugs?
-En https://github.com/germanavila09/Observatorio-GeoSalud/issues
+En https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues
 
 ---
 
 ## 🤝 Soporte
 
 - 📧 **Email**: germanavila09@gmail.com
-- 🐛 **Issues**: [GitHub Issues](https://github.com/germanavila09/Observatorio-GeoSalud/issues)
-- 💬 **Discussions**: [GitHub Discussions](https://github.com/germanavila09/Observatorio-GeoSalud/discussions)
+- 🐛 **Issues**: [GitHub Issues](https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues)
+- 💬 **Discussions**: [GitHub Discussions](https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/discussions)
 
 ---
 
@@ -223,6 +223,6 @@ En https://github.com/germanavila09/Observatorio-GeoSalud/issues
 
 **¿Nuevo en Git/GitHub?** Ver [Git Guide](https://guides.github.com/) para comenzar.
 
-**¿Problemas?** Busca en [SETUP.md](SETUP.md) → Troubleshooting o crea un [issue](https://github.com/germanavila09/Observatorio-GeoSalud/issues).
+**¿Problemas?** Busca en [SETUP.md](SETUP.md) → Troubleshooting o crea un [issue](https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues).
 
 Bienvenido al Observatorio GeoSalud 🌍 📊

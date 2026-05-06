@@ -51,10 +51,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/germanavila09/Observatorio-GeoSalud"
-Documentation = "https://github.com/germanavila09/Observatorio-GeoSalud"
-Repository = "https://github.com/germanavila09/Observatorio-GeoSalud.git"
-Issues = "https://github.com/germanavila09/Observatorio-GeoSalud/issues"
+Homepage = "https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca"
+Documentation = "https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca"
+Repository = "https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca.git"
+Issues = "https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca/issues"
 
 [tool.setuptools.packages.find]
 include = ["src*"]
