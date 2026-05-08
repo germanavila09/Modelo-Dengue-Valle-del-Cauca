@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(python -m pytest tests/ -q --tb=no)"
+      "Bash(python -m pytest tests/ -q --tb=no)",
+      "Bash(git add *)"
     ]
   }
 }

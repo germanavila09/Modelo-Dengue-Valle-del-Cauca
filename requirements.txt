@@ -12,6 +12,7 @@ geoalchemy2>=0.14
 # Visualización
 matplotlib>=3.10.8
 seaborn>=0.13.2
+folium>=0.17.0
 
 # Análisis espacial (AEDE)
 libpysal>=4.10
@@ -27,6 +28,14 @@ setuptools<81
 python-dotenv>=1.2.2
 nbconvert>=7.0
 jupyter>=1.0
+
+# Chatbot — Agent Development Kit (Google)
+# https://google.github.io/adk-docs/get-started/python/
+google-adk>=1.0.0
+
+# Servidor REST del chatbot (puente frontend ↔ ADK)
+fastapi>=0.100.0
+uvicorn[standard]>=0.23.0
 
 # PyTorch con CUDA — instalar manualmente:
 # pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124

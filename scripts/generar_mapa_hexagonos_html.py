@@ -192,6 +192,21 @@ html, body, #map {
   font-size: 18px;
   letter-spacing: -0.02em;
 }
+.observatory-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 16px;
+  padding: 9px 10px;
+  border: 1px solid #22d3ee;
+  border-radius: 6px;
+  background: rgba(34, 211, 238, .08);
+  color: #22d3ee;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.observatory-back:hover { background: rgba(34, 211, 238, .16); color: #e2e8f8; }
 #panel label {
   display: block;
   font-size: 9px;
@@ -314,6 +329,7 @@ def build_html(datasets: dict[str, dict], summaries: dict[str, dict]) -> str:
     <p>Microconcentraciones de dengue por municipio y ano</p>
   </div>
   <aside id="panel">
+    <a class="observatory-back" href="../frontend/Geodata%20Salud.html">Volver al observatorio</a>
     <h2>Hexagonos</h2>
     <label for="municipioSelect">Municipio</label>
     <select id="municipioSelect"></select>

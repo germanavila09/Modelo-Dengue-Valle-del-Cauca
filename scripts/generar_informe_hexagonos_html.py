@@ -221,6 +221,20 @@ body {
   color: #11233f;
 }
 .page { max-width: 1180px; margin: 0 auto; padding: 34px 22px 70px; }
+.observatory-back {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 10px 13px;
+  border: 1px solid #0f5d65;
+  border-radius: 6px;
+  background: white;
+  color: #0f5d65;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+}
+.observatory-back:hover { background: #eef8f7; color: #0f2b46; }
 .hero {
   background: linear-gradient(135deg, #0f2b46, #155c63);
   color: white;
@@ -330,6 +344,7 @@ def build_html() -> str:
 </head>
 <body>
   <main class="page">
+    <a class="observatory-back" href="../frontend/Geodata%20Salud.html">Volver al observatorio</a>
     <header class="hero">
       <h1>Analisis de dengue por hexagonos</h1>
       <p>Informe visual paso a paso para revisar los insumos, la calidad de datos y el geoproceso espacial entre <code>public.dengue_m</code> y <code>public.hexagonos</code>.</p>

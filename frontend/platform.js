@@ -1,190 +1,277 @@
-const sectors = {
-  salud: {
-    kicker: "Salud publica",
-    title: "Priorizar intervenciones con evidencia territorial.",
-    copy: "Cruza casos, poblacion, equipamientos, movilidad y condiciones ambientales para identificar focos de riesgo y orientar acciones preventivas.",
-    list: [
-      "Deteccion de concentraciones espaciales.",
-      "Priorizacion municipal y barrial.",
-      "Seguimiento temporal de brotes e indicadores."
-    ],
-    color: "#1463ff",
-    layers: 7,
-    image: "assets/sector-salud.svg"
+const slides = [
+  {
+    kicker: "Innovacion territorial",
+    title: "Laboratorio de Inteligencia Territorial",
+    text: "Ciencia de datos geoespaciales para la gestion inteligente del territorio.",
+    action: "Conoce el laboratorio",
+    href: "#laboratorio",
+    panelTitle: "Territorio conectado",
+    panelCopy: "Mapas, modelos, sensores y observatorios."
   },
-  ambiente: {
-    kicker: "Ambiente",
-    title: "Monitorear presiones ambientales y cambios en el territorio.",
-    copy: "Relaciona coberturas, fuentes hidricas, calidad ambiental, ocupacion del suelo y alertas tempranas para proteger ecosistemas y comunidades.",
-    list: [
-      "Seguimiento de deforestacion y cambios de cobertura.",
-      "Identificacion de zonas criticas por contaminacion.",
-      "Cruce entre amenazas ambientales y poblacion expuesta."
-    ],
-    color: "#2a9d66",
-    layers: 9,
-    image: "assets/sector-ambiente.svg"
+  {
+    kicker: "Smart cities",
+    title: "Territorios y ciudades inteligentes",
+    text: "Analitica espacial, datos abiertos e innovacion para responder a los retos urbanos y regionales.",
+    action: "Ver lineas estrategicas",
+    href: "#lineas",
+    panelTitle: "Ciudad inteligente",
+    panelCopy: "Flujos, servicios, accesibilidad y gestion urbana."
   },
-  riesgo: {
-    kicker: "Gestion del riesgo",
-    title: "Anticipar amenazas y focalizar capacidades de respuesta.",
-    copy: "Integra amenaza, vulnerabilidad, exposicion, infraestructura critica y rutas de acceso para planear prevencion, preparacion y respuesta.",
-    list: [
-      "Mapas de exposicion ante inundacion, remocion o incendios.",
-      "Escenarios de afectacion por municipio o zona.",
-      "Rutas y nodos criticos para atencion."
-    ],
-    color: "#d04a3a",
-    layers: 8,
-    image: "assets/sector-riesgo.svg"
+  {
+    kicker: "GeoAI",
+    title: "Inteligencia artificial geoespacial",
+    text: "Modelos predictivos, percepcion remota y analisis territorial avanzado para la toma de decisiones.",
+    action: "Explorar tecnologias",
+    href: "#tecnologias",
+    panelTitle: "Modelos predictivos",
+    panelCopy: "IA aplicada a patrones, escenarios y alertas."
   },
-  movilidad: {
-    kicker: "Movilidad",
-    title: "Entender flujos, accesibilidad y brechas de conexion.",
-    copy: "Analiza redes, tiempos de viaje, demanda, siniestralidad y acceso a servicios para disenar intervenciones de movilidad con enfoque territorial.",
-    list: [
-      "Accesibilidad a equipamientos y servicios.",
-      "Puntos criticos de siniestralidad vial.",
-      "Priorizacion de corredores y conexiones."
-    ],
-    color: "#6c63b8",
-    layers: 6,
-    image: "assets/sector-movilidad.svg"
+  {
+    kicker: "Observatorios inteligentes",
+    title: "Plataformas de informacion territorial",
+    text: "Observatorios para salud, turismo, movilidad, ambiente y desarrollo urbano.",
+    action: "Ver proyectos",
+    href: "#proyectos",
+    panelTitle: "Observatorios vivos",
+    panelCopy: "Indicadores, dashboards, geovisores y reportes."
   },
-  agro: {
-    kicker: "Agro y ruralidad",
-    title: "Planear productividad, asistencia tecnica y resiliencia rural.",
-    copy: "Combina predios, cultivos, clima, suelos, infraestructura y mercados para orientar cadenas productivas y programas rurales.",
-    list: [
-      "Aptitud productiva y conflictos de uso.",
-      "Seguimiento climatico y alertas para cultivos.",
-      "Cobertura territorial de asistencia tecnica."
-    ],
-    color: "#c98b22",
-    layers: 10,
-    image: "assets/sector-agro.svg"
-  },
-  servicios: {
-    kicker: "Servicios publicos",
-    title: "Medir cobertura, calidad y expansion de redes.",
-    copy: "Ordena redes, usuarios, calidad del servicio, expansion urbana y demanda futura para cerrar brechas de cobertura con criterios espaciales.",
-    list: [
-      "Cobertura y continuidad por zona.",
-      "Priorizacion de expansion de redes.",
-      "Analisis de demanda y poblacion no servida."
-    ],
-    color: "#0f9f9a",
-    layers: 8,
-    image: "assets/sector-servicios.svg"
+  {
+    kicker: "Universidad y territorio",
+    title: "Universidad, territorio e innovacion",
+    text: "Un espacio academico para articular investigacion, formacion, extension y cooperacion institucional.",
+    action: "Contactanos",
+    href: "#contacto",
+    panelTitle: "Cooperacion territorial",
+    panelCopy: "Academia, instituciones, empresas y comunidades."
   }
-};
+];
 
-const buttons = document.querySelectorAll(".sector-btn");
-const kicker = document.getElementById("sector-kicker");
-const title = document.getElementById("sector-title");
-const copy = document.getElementById("sector-copy");
-const list = document.getElementById("sector-list");
-const layerCount = document.getElementById("layer-count");
-const sectorVisual = document.getElementById("sector-visual");
-const sectorMap = document.querySelector(".sector-map");
+const strategicLines = [
+  ["IT", "Inteligencia Territorial y Analitica Espacial", "Lectura integrada de patrones, relaciones, brechas y dinamicas territoriales para apoyar decisiones."],
+  ["CI", "Ciudades y Territorios Inteligentes", "Datos urbanos, servicios, movilidad, infraestructura y gestion inteligente de retos metropolitanos."],
+  ["SP", "Salud y Vigilancia Epidemiologica Inteligente", "Observatorios de salud publica espacial, priorizacion de riesgo y seguimiento de eventos."],
+  ["PR", "Percepcion Remota y Observacion de la Tierra", "Imagenes satelitales, drones y sensores para monitorear coberturas, ambiente y cambios del territorio."],
+  ["DA", "Observatorios Inteligentes y Datos Abiertos", "Plataformas publicas con indicadores, geovisores, interoperabilidad, datos abiertos y reportes."],
+  ["MP", "Modelado Predictivo Territorial", "Escenarios, alertas tempranas, pronosticos y modelos de apoyo para gestion publica y academica."]
+];
 
-buttons.forEach((button) => {
-  button.addEventListener("click", () => {
-    const data = sectors[button.dataset.sector];
-    buttons.forEach((item) => item.classList.remove("active"));
-    button.classList.add("active");
-    kicker.textContent = data.kicker;
-    title.textContent = data.title;
-    copy.textContent = data.copy;
-    layerCount.textContent = data.layers;
-    document.documentElement.style.setProperty("--blue", data.color);
-    list.innerHTML = data.list.map((item) => `<li>${item}</li>`).join("");
-    if (sectorVisual && sectorMap) {
-      sectorMap.classList.add("is-changing");
-      window.setTimeout(() => {
-        sectorVisual.src = data.image;
-        sectorMap.classList.remove("is-changing");
-      }, 120);
-    }
-  });
-});
+const components = [
+  ["Sala de analisis territorial y geovisores", "Espacio para lectura de mapas, tableros, indicadores y visualizacion territorial colaborativa."],
+  ["Nodo de inteligencia artificial geoespacial", "Capacidad para modelos predictivos, aprendizaje automatico, simulaciones y analitica avanzada."],
+  ["Unidad de percepcion remota y drones", "Captura, procesamiento e interpretacion de imagenes satelitales, sensores y vuelos territoriales."],
+  ["Observatorio territorial universitario", "Sistema de seguimiento academico y publico a fenomenos urbanos, regionales, ambientales y sociales."],
+  ["Plataforma de datos espaciales e interoperabilidad", "Repositorio de datos, servicios geograficos, APIs, estandares y flujos de actualizacion."]
+];
 
-const canvas = document.getElementById("geo-scene");
-const ctx = canvas.getContext("2d");
-const points = Array.from({ length: 46 }, (_, index) => ({
-  x: (index * 83) % 100,
-  y: (index * 47) % 100,
-  r: 1.5 + (index % 5) * 0.45,
-  speed: 0.18 + (index % 7) * 0.025
-}));
+const projects = [
+  ["Observatorio Inteligente de Salud Publica", "salud", "Salud", "assets/sector-salud.svg", "Vigilancia epidemiologica, indicadores, mapas de riesgo, AEDE y modelos predictivos."],
+  ["Observatorio de Turismo Inteligente", "ciudad", "Ciudad", "assets/sector-servicios.svg", "Flujos de visitantes, atractivos, accesibilidad, seguridad y oportunidades economicas."],
+  ["Analitica de Movilidad Urbana", "ciudad", "Movilidad", "assets/sector-movilidad.svg", "Tiempos de viaje, siniestralidad, acceso a servicios y priorizacion de corredores."],
+  ["Modelos Predictivos de Riesgo Territorial", "riesgo", "Riesgo", "assets/sector-riesgo.svg", "Amenaza, vulnerabilidad, exposicion, infraestructura critica y escenarios de respuesta."],
+  ["Monitoreo Ambiental y Cambio Climatico", "ambiente", "Ambiente", "assets/sector-ambiente.svg", "Coberturas, calidad ambiental, sensores, percepcion remota y alertas regionales."],
+  ["Gemelo Digital Territorial para Cali", "ciudad", "GeoAI", "assets/sector-agro.svg", "Modelo digital para integrar datos, simulacion, escenarios y gestion inteligente."]
+];
 
-function resizeCanvas() {
-  const ratio = window.devicePixelRatio || 1;
-  canvas.width = Math.floor(canvas.offsetWidth * ratio);
-  canvas.height = Math.floor(canvas.offsetHeight * ratio);
-  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+const technologies = [
+  "Python", "PostgreSQL/PostGIS", "QGIS", "ArcGIS Pro", "GeoServer", "Docker", "GitLab",
+  "Google Earth Engine", "BigQuery", "Vertex AI", "Leaflet", "Folium", "APIs geoespaciales",
+  "FHIR", "Drones", "Sensores", "Inteligencia Artificial"
+];
+
+const impacts = [
+  [6, "", "lineas estrategicas"],
+  [5, "", "componentes tecnologicos"],
+  [6, "", "proyectos potenciales"],
+  [10, "+", "aliados estrategicos"],
+  [1, "", "plataforma de inteligencia territorial"],
+  [3, "", "ejes misionales: investigacion, formacion y extension"]
+];
+
+const allies = [
+  "Alcaldia de Cali", "Secretaria de Salud", "DATIC", "IDEAM", "INS", "Universidades",
+  "Empresas de tecnologia", "Centros de investigacion", "Cooperacion internacional"
+];
+
+function byId(id) {
+  return document.getElementById(id);
 }
 
-function drawScene(time = 0) {
-  const width = canvas.offsetWidth;
-  const height = canvas.offsetHeight;
-  ctx.clearRect(0, 0, width, height);
+function renderContent() {
+  const strategic = byId("strategic-lines");
+  const componentGrid = byId("lab-components");
+  const projectGrid = byId("project-grid");
+  const techCloud = byId("tech-cloud");
+  const impactGrid = byId("impact-grid");
+  const alliesGrid = byId("allies-grid");
 
-  const terrain = ctx.createLinearGradient(0, 0, width, height);
-  terrain.addColorStop(0, "#1b5f73");
-  terrain.addColorStop(0.44, "#254f72");
-  terrain.addColorStop(1, "#4f5f55");
-  ctx.fillStyle = terrain;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = "rgba(255,255,255,0.12)";
-  ctx.lineWidth = 1;
-  for (let i = -height; i < width; i += 48) {
-    ctx.beginPath();
-    ctx.moveTo(i, 0);
-    ctx.lineTo(i + height, height);
-    ctx.stroke();
-  }
-  for (let y = 70; y < height; y += 86) {
-    ctx.beginPath();
-    for (let x = 0; x <= width; x += 18) {
-      const wave = Math.sin((x + time * 0.025) * 0.012 + y * 0.01) * 18;
-      if (x === 0) ctx.moveTo(x, y + wave);
-      else ctx.lineTo(x, y + wave);
-    }
-    ctx.stroke();
+  if (strategic) {
+    strategic.innerHTML = strategicLines.map(([icon, title, text]) => `
+      <article class="line-card reveal visible">
+        <span class="card-icon" aria-hidden="true">${icon}</span>
+        <h3>${title}</h3>
+        <p>${text}</p>
+      </article>
+    `).join("");
   }
 
-  points.forEach((point, index) => {
-    const drift = Math.sin(time * 0.001 * point.speed + index) * 12;
-    point.sx = (point.x / 100) * width + drift;
-    point.sy = (point.y / 100) * height + Math.cos(time * 0.001 * point.speed + index) * 10;
-  });
+  if (componentGrid) {
+    componentGrid.innerHTML = components.map(([title, text], index) => `
+      <article class="component-card reveal visible">
+        <small>${String(index + 1).padStart(2, "0")}</small>
+        <h3>${title}</h3>
+        <p>${text}</p>
+      </article>
+    `).join("");
+  }
 
-  ctx.strokeStyle = "rgba(255,255,255,0.18)";
-  points.forEach((a, index) => {
-    const b = points[(index + 9) % points.length];
-    const dx = a.sx - b.sx;
-    const dy = a.sy - b.sy;
-    if (Math.hypot(dx, dy) < 230) {
-      ctx.beginPath();
-      ctx.moveTo(a.sx, a.sy);
-      ctx.lineTo(b.sx, b.sy);
-      ctx.stroke();
-    }
-  });
+  if (projectGrid) {
+    projectGrid.innerHTML = projects.map(([title, category, label, image, text]) => `
+      <article class="project-card reveal visible" data-category="${category}">
+        <div class="project-media">
+          <img src="${image}" alt="${title}">
+          <span class="project-category">${label}</span>
+        </div>
+        <div class="project-body">
+          <h3>${title}</h3>
+          <p>${text}</p>
+          <a href="#contacto">Ver mas</a>
+        </div>
+      </article>
+    `).join("");
+  }
 
-  points.forEach((point, index) => {
-    const palette = ["#8fe8d7", "#ffffff", "#f6c96e", "#ff9b8d"];
-    ctx.beginPath();
-    ctx.arc(point.sx, point.sy, point.r, 0, Math.PI * 2);
-    ctx.fillStyle = palette[index % palette.length];
-    ctx.fill();
-  });
+  if (techCloud) {
+    techCloud.innerHTML = technologies.map((tech) => `<span class="tech-chip reveal visible">${tech}</span>`).join("");
+  }
 
-  requestAnimationFrame(drawScene);
+  if (impactGrid) {
+    impactGrid.innerHTML = impacts.map(([value, suffix, label]) => `
+      <article class="impact-card reveal visible">
+        <strong><span class="counter" data-target="${value}">${value}</span>${suffix}</strong>
+        <span>${label}</span>
+      </article>
+    `).join("");
+  }
+
+  if (alliesGrid) {
+    alliesGrid.innerHTML = allies.map((ally) => `
+      <article class="ally-card reveal visible">
+        <span class="ally-badge">${ally.slice(0, 2).toUpperCase()}</span>
+        <div>
+          <strong>${ally}</strong>
+          <span>Aliado potencial</span>
+        </div>
+      </article>
+    `).join("");
+  }
 }
 
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
-drawScene();
+function setSlide(index) {
+  const slide = slides[index % slides.length];
+  const fields = {
+    "hero-kicker": slide.kicker,
+    "hero-title": slide.title,
+    "hero-text": slide.text,
+    "hero-panel-title": slide.panelTitle,
+    "hero-panel-copy": slide.panelCopy
+  };
+  Object.entries(fields).forEach(([id, value]) => {
+    const element = byId(id);
+    if (element) element.textContent = value;
+  });
+  const action = byId("hero-action");
+  if (action) {
+    action.textContent = slide.action;
+    action.href = slide.href;
+  }
+  document.querySelectorAll(".slide-dot").forEach((dot) => {
+    dot.classList.toggle("active", Number(dot.dataset.slide) === index % slides.length);
+  });
+}
+
+function setupCarousel() {
+  let current = 0;
+  const progress = byId("hero-progress");
+  document.querySelectorAll(".slide-dot").forEach((dot) => {
+    dot.addEventListener("click", () => {
+      current = Number(dot.dataset.slide);
+      setSlide(current);
+      if (progress) progress.style.width = "0%";
+    });
+  });
+  window.setInterval(() => {
+    current = (current + 1) % slides.length;
+    setSlide(current);
+    if (progress) progress.style.width = "100%";
+    window.setTimeout(() => {
+      if (progress) progress.style.width = "0%";
+    }, 450);
+  }, 6500);
+}
+
+function setupMenu() {
+  const nav = document.querySelector(".main-nav");
+  const toggle = document.querySelector(".menu-toggle");
+  if (!nav || !toggle) return;
+  toggle.addEventListener("click", () => {
+    const open = nav.classList.toggle("open");
+    toggle.setAttribute("aria-expanded", String(open));
+  });
+  nav.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      nav.classList.remove("open");
+      toggle.setAttribute("aria-expanded", "false");
+    });
+  });
+}
+
+function setupFilters() {
+  const buttons = document.querySelectorAll(".filter-btn");
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      buttons.forEach((item) => item.classList.remove("active"));
+      button.classList.add("active");
+      const filter = button.dataset.filter;
+      document.querySelectorAll(".project-card").forEach((card) => {
+        const visible = filter === "todos" || card.dataset.category === filter;
+        card.hidden = !visible;
+      });
+    });
+  });
+}
+
+function setupContactForm() {
+  const form = document.querySelector(".contact-form");
+  if (!form) return;
+  form.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button");
+    button.textContent = "Mensaje preparado";
+    window.setTimeout(() => {
+      button.textContent = "Enviar mensaje";
+    }, 2200);
+  });
+}
+
+function init() {
+  try {
+    renderContent();
+    setupCarousel();
+    setupMenu();
+    setupFilters();
+    setupContactForm();
+    document.querySelectorAll(".reveal").forEach((item) => item.classList.add("visible"));
+  } catch (error) {
+    document.body.insertAdjacentHTML("afterbegin", `
+      <div style="padding:16px;background:#fff3cd;color:#5b4300;font-family:system-ui">
+        La pagina cargo con una advertencia de JavaScript. El contenido principal permanece disponible.
+      </div>
+    `);
+  }
+}
+
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", init);
+} else {
+  init();
+}

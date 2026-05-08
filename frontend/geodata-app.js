@@ -48,6 +48,8 @@ let INCLUDE_CALI = false;
 let MAP_MODE = 'burbujas';
 let MAP_VAR = 'incidencia_dengue'; // 'incidencia_dengue' | 'conteo_dengue'
 let SELECTED_MUN = '76001';
+let TENDENCIA_CODES = null;
+let TENDENCIA_METRIC = 'incidencia_dengue';
 let mapInstance = null;
 let mapLayers = [];
 let charts = {};
@@ -64,6 +66,15 @@ function t(k) { return I18N[LANG][k] || k; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
 function navigate(section) {
+  if (section === 'chatbot') {
+    if (window.initChatbot) window.initChatbot();
+    if (window.openChatbot) window.openChatbot();
+    return;
+  }
+  if (section === 'coropletico') {
+    MAP_MODE = 'coropletico';
+    section = 'geovisor';
+  }
   ACTIVE_SECTION = section;
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -71,21 +82,16 @@ function navigate(section) {
   if (el) el.classList.add('active');
   const nav = document.querySelector(`.nav-item[data-section="${section}"]`);
   if (nav) nav.classList.add('active');
-  document.getElementById('header-title').textContent = t(section);
+  const titles = { hexagonos: 'Hexágonos', aede: 'AEDE', forecasting: 'IA & ML Forecasting', chatbot: 'Asistente IA' };
+  document.getElementById('header-title').textContent = titles[section] || t(section);
   if (section === 'geovisor' && mapInstance) { setTimeout(() => mapInstance.invalidateSize(), 100); }
-  if (section === 'coropletico') {
-    setTimeout(() => {
-      if (!choroMap) initChoroMap();
-      else { choroMap.invalidateSize(); renderChoroLayer(); }
-    }, 100);
-    return;
-  }
   // Render charts AFTER section is visible — setTimeout ensures full CSS layout
   setTimeout(() => {
     if (section === 'indicadores') renderIndicadores();
     if (section === 'tendencias') renderTendencias();
     if (section === 'priorizacion') renderPriorizacion();
     if (section === 'dashboard') renderDashboard();
+    if (section === 'forecasting' && window.refreshForecastingModule) window.refreshForecastingModule();
   }, 50);
 }
 
@@ -143,6 +149,18 @@ function renderChoroplethLegend(bins, palette, isMock) {
       + palette.map((c, i) => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
           <span style="width:12px;height:12px;border-radius:3px;background:${c};display:inline-block;flex-shrink:0"></span>
           <span>${labels[i]}</span></div>`).join('');
+    return div;
+  };
+  choroplethLegendCtrl.addTo(mapInstance);
+}
+
+function renderMapLegend(html) {
+  if (choroplethLegendCtrl) { mapInstance.removeControl(choroplethLegendCtrl); choroplethLegendCtrl = null; }
+  choroplethLegendCtrl = L.control({ position: 'bottomright' });
+  choroplethLegendCtrl.onAdd = () => {
+    const div = L.DomUtil.create('div');
+    div.style.cssText = 'background:#0c1221ee;border:1px solid #1c2d4a;border-radius:8px;padding:10px 12px;font-family:Space Grotesk,sans-serif;font-size:11px;color:#94a3b8;min-width:155px';
+    div.innerHTML = html;
     return div;
   };
   choroplethLegendCtrl.addTo(mapInstance);
@@ -343,7 +361,7 @@ function renderMapLayer() {
       mapLayers.push(circle);
     });
 
-  } else if (MAP_MODE === 'coropletico') {
+  } else if (MAP_MODE === 'coropletico' || MAP_MODE === 'riesgo' || MAP_MODE === 'delta') {
     // Use real PostGIS GeoJSON if available, otherwise fall back to mock octagons
     const geomSrc = (typeof window !== 'undefined' && window.GEO_MUNI)
       ? window.GEO_MUNI
@@ -352,28 +370,58 @@ function renderMapLayer() {
 
     // Build lookup: code → record for current year/filter
     const lookup = {};
-    data.forEach(r => { lookup[r.MPIO_CCDGO] = r; });
+    const isRiesgo = MAP_MODE === 'riesgo';
+    const isDelta = MAP_MODE === 'delta';
+    let choroplethColor;
 
-    // Quantile colour scale (5 bins)
-    const vals = data.map(r => r[MAP_VAR]).filter(v => v != null).sort((a, b) => a - b);
-    const q = f => vals[Math.max(0, Math.floor((vals.length - 1) * f))];
-    const bins = [q(0.2), q(0.4), q(0.6), q(0.8)];
-    const CHORO_PALETTE = ['#1e3a5f', '#1d4ed8', '#22d3ee', '#fbbf24', '#f87171'];
-    const choroplethColor = v => {
-      if (v == null) return '#111827';
-      if (v > bins[3]) return CHORO_PALETTE[4];
-      if (v > bins[2]) return CHORO_PALETTE[3];
-      if (v > bins[1]) return CHORO_PALETTE[2];
-      if (v > bins[0]) return CHORO_PALETTE[1];
-      return CHORO_PALETTE[0];
-    };
+    if (isRiesgo) {
+      if (typeof RISK_MAP !== 'undefined') Object.assign(lookup, RISK_MAP);
+      if (!INCLUDE_CALI) delete lookup['76001'];
+      const RC = { 'Crítico':'#f87171', 'CrÃ­tico':'#f87171', 'Alto':'#fbbf24', 'Medio':'#34d399', 'Bajo':'#3b82f6' };
+      choroplethColor = rec => RC[rec?.nivel] || '#111827';
+      renderMapLegend(`<b style="color:#e2e8f8">Nivel de riesgo</b>
+        <div style="font-size:10px;color:#64748b;margin:4px 0 8px">Prom. incidencia 2022-24</div>`
+        + ['Crítico','Alto','Medio','Bajo'].map(n =>
+          `<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px">
+            <span style="width:12px;height:12px;border-radius:3px;background:${RC[n]};flex-shrink:0"></span>
+            <span>${n}</span></div>`).join(''));
+    } else if (isDelta) {
+      if (typeof DELTA_MAP !== 'undefined') Object.assign(lookup, DELTA_MAP);
+      if (!INCLUDE_CALI) delete lookup['76001'];
+      const steps = [[-1e9,-30,'#1d4ed8'],[-30,-10,'#3b82f6'],[-10,0,'#93c5fd'],[0,10,'#fca5a5'],[10,30,'#f87171'],[30,1e9,'#dc2626']];
+      choroplethColor = rec => {
+        const d = rec?.delta_pct;
+        if (d == null) return '#111827';
+        return (steps.find(([lo, hi]) => d >= lo && d < hi) || [0, 0, '#111827'])[2];
+      };
+      renderMapLegend(`<b style="color:#e2e8f8">Cambio 2023 -> 2024</b>
+        <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,#1d4ed8,#93c5fd,#e2e8f8,#fca5a5,#dc2626);margin:8px 0 6px"></div>
+        <div style="display:flex;justify-content:space-between;font-size:10px"><span>Baja</span><span>0</span><span>Sube</span></div>`);
+    } else {
+      data.forEach(r => { lookup[r.MPIO_CCDGO] = r; });
+      const vals = data.map(r => r[MAP_VAR]).filter(v => v != null).sort((a, b) => a - b);
+      const q = f => vals[Math.max(0, Math.floor((vals.length - 1) * f))];
+      const bins = [q(0.2), q(0.4), q(0.6), q(0.8)];
+      const CHORO_PALETTE = MAP_VAR === 'incidencia_dengue'
+        ? ['#1e3a5f', '#1d4ed8', '#22d3ee', '#fbbf24', '#f87171']
+        : ['#0f2040', '#1e3a5f', '#2d6aab', '#22d3ee', '#f87171'];
+      choroplethColor = rec => {
+        const v = rec?.[MAP_VAR];
+        if (v == null) return '#111827';
+        if (v > bins[3]) return CHORO_PALETTE[4];
+        if (v > bins[2]) return CHORO_PALETTE[3];
+        if (v > bins[1]) return CHORO_PALETTE[2];
+        if (v > bins[0]) return CHORO_PALETTE[1];
+        return CHORO_PALETTE[0];
+      };
+      renderChoroplethLegend(bins, CHORO_PALETTE, isMock);
+    }
 
     const layer = L.geoJSON(geomSrc, {
       style: feat => {
         const code = feat.properties?.MPIO_CCDGO;
         const rec = lookup[code];
-        const val = rec ? rec[MAP_VAR] : null;
-        const col = choroplethColor(val);
+        const col = choroplethColor(rec);
         return {
           fillColor: col, color: '#060a12',
           weight: isMock ? 1.5 : 1,
@@ -382,10 +430,29 @@ function renderMapLayer() {
       },
       onEachFeature: (feat, lyr) => {
         const code = feat.properties?.MPIO_CCDGO;
+        const name = feat.properties?.MPIO_CNMBR;
         const rec = lookup[code];
         if (rec) {
-          const col = choroplethColor(rec[MAP_VAR]);
-          lyr.bindTooltip(munTooltip(rec, col), { className: 'geo-tooltip', sticky: true });
+          const col = choroplethColor(rec);
+          let tip;
+          if (isRiesgo) {
+            tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:170px">
+              <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px">${name}</div>
+              <div style="color:#94a3b8;font-size:12px">Nivel: <b style="color:${col}">${rec.nivel}</b></div>
+              <div style="color:#94a3b8;font-size:12px">Inc. prom: <b style="color:#e2e8f8">${rec.inc_prom?.toFixed(1)}</b> x100k</div>
+            </div>`;
+          } else if (isDelta) {
+            const sign = (rec.delta_pct ?? 0) >= 0 ? '+' : '';
+            tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:170px">
+              <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px">${name}</div>
+              <div style="color:#94a3b8;font-size:12px">Cambio 2023-24: <b style="color:${col}">${sign}${rec.delta_pct?.toFixed(1) ?? '-'}%</b></div>
+              <div style="color:#94a3b8;font-size:12px">Inc. 2023: <b>${rec.inc_2023?.toFixed(1)}</b></div>
+              <div style="color:#94a3b8;font-size:12px">Inc. 2024: <b>${rec.inc_2024?.toFixed(1)}</b></div>
+            </div>`;
+          } else {
+            tip = munTooltip(rec, col);
+          }
+          lyr.bindTooltip(tip, { className: 'geo-tooltip', sticky: true });
           lyr.on({
             mouseover: e => e.target.setStyle({ weight: 2.5, fillOpacity: 0.96, color: '#ffffff44' }),
             mouseout:  e => layer.resetStyle(e.target)
@@ -400,7 +467,6 @@ function renderMapLayer() {
     try { mapInstance.fitBounds(layer.getBounds(), { padding: [16, 16] }); } catch(e) {}
 
     // Dynamic choropleth legend
-    renderChoroplethLegend(bins, CHORO_PALETTE, isMock);
     if (isMock) showMapMessage('Geometrías aproximadas — ejecuta exportar_datos_obs.py para polígonos reales de PostGIS');
 
   } else if (MAP_MODE === 'calor') {
@@ -449,6 +515,33 @@ function renderMapLayer() {
   const totalY = data.reduce((s, r) => s + r.conteo_dengue, 0);
   const avgInc = (data.reduce((s, r) => s + r.incidencia_dengue, 0) / data.length).toFixed(1);
   const el = document.getElementById('map-stats');
+  if (el && MAP_MODE === 'riesgo' && typeof RISK_MAP !== 'undefined') {
+    const values = Object.entries(RISK_MAP)
+      .filter(([code]) => INCLUDE_CALI || code !== '76001')
+      .map(([, r]) => r);
+    const cnt = { 'Crítico':0, 'CrÃ­tico':0, 'Alto':0, 'Medio':0, 'Bajo':0 };
+    values.forEach(r => { if (r.nivel in cnt) cnt[r.nivel]++; });
+    const criticos = cnt['Crítico'] + cnt['CrÃ­tico'];
+    el.innerHTML = `
+      <div class="map-stat"><span class="map-stat-val" style="color:#f87171">${criticos}</span><span class="map-stat-lbl">críticos</span></div>
+      <div class="map-stat"><span class="map-stat-val" style="color:#fbbf24">${cnt['Alto']}</span><span class="map-stat-lbl">alto</span></div>
+      <div class="map-stat"><span class="map-stat-val">${values.length}</span><span class="map-stat-lbl">municipios</span></div>`;
+    return;
+  }
+  if (el && MAP_MODE === 'delta' && typeof DELTA_MAP !== 'undefined') {
+    const vals = Object.entries(DELTA_MAP)
+      .filter(([code]) => INCLUDE_CALI || code !== '76001')
+      .map(([, r]) => r.delta_pct)
+      .filter(v => v != null);
+    const mejoran = vals.filter(v => v < 0).length;
+    const empeoran = vals.filter(v => v > 0).length;
+    const med = [...vals].sort((a, b) => a - b)[Math.floor(vals.length / 2)];
+    el.innerHTML = `
+      <div class="map-stat"><span class="map-stat-val" style="color:#34d399">${mejoran}</span><span class="map-stat-lbl">mejoran</span></div>
+      <div class="map-stat"><span class="map-stat-val" style="color:#f87171">${empeoran}</span><span class="map-stat-lbl">empeoran</span></div>
+      <div class="map-stat"><span class="map-stat-val">${med != null ? (med >= 0 ? '+' : '') + med.toFixed(1) + '%' : '-'}</span><span class="map-stat-lbl">mediana</span></div>`;
+    return;
+  }
   if (el) el.innerHTML = `
     <div class="map-stat"><span class="map-stat-val">${fmt(totalY)}</span><span class="map-stat-lbl">casos ${SELECTED_YEAR}</span></div>
     <div class="map-stat"><span class="map-stat-val">${avgInc}</span><span class="map-stat-lbl">inc. prom ×100k</span></div>
@@ -535,15 +628,20 @@ function renderScatter() {
 function renderTendencias() {
   const ctx = document.getElementById('chart-tendencia'); if (!ctx) return;
   if (charts['tendencia']) charts['tendencia'].destroy();
-  const codes = [SELECTED_MUN, '76520', '76109'];
-  const uniqueCodes = [...new Set(codes)].slice(0, 4);
-  const palette = ['#3b82f6','#22d3ee','#34d399','#fbbf24'];
+  const codes = TENDENCIA_CODES?.length ? TENDENCIA_CODES : [SELECTED_MUN, '76520', '76109'];
+  const uniqueCodes = [...new Set(codes)].slice(0, 6);
+  const palette = ['#3b82f6','#22d3ee','#34d399','#fbbf24','#f87171','#a78bfa'];
+  const metric = TENDENCIA_METRIC || 'incidencia_dengue';
+  const yLabel = metric === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
+  const title = metric === 'conteo_dengue' ? 'Serie historica - Casos' : t('serie_hist');
+  const titleEl = document.querySelector('#s-tendencias .chart-card-title');
+  if (titleEl) titleEl.textContent = title;
   const datasets = uniqueCodes.map((code, i) => {
     const mun = MUN_CATALOG.find(m => m.code === code);
     const rows = getByMun(code);
     return {
       label: mun?.name || code,
-      data: rows.map(r => r.incidencia_dengue),
+      data: rows.map(r => r[metric]),
       borderColor: palette[i], backgroundColor: palette[i] + '18',
       borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 8,
       tension: 0.4, fill: true,
@@ -552,7 +650,7 @@ function renderTendencias() {
   charts['tendencia'] = new Chart(ctx, {
     type: 'line',
     data: { labels: YEARS, datasets },
-    options: fullChartOpts({ yLabel: 'Incidencia ×100k', title: t('serie_hist') })
+    options: fullChartOpts({ yLabel, title })
   });
   // Populate municipality selector
   const sel = document.getElementById('mun-select');
@@ -563,9 +661,120 @@ function renderTendencias() {
       if (m.code === SELECTED_MUN) opt.selected = true;
       sel.appendChild(opt);
     });
-    sel.addEventListener('change', e => { SELECTED_MUN = e.target.value; renderTendencias(); });
+    sel.addEventListener('change', e => {
+      SELECTED_MUN = e.target.value;
+      TENDENCIA_CODES = null;
+      renderTendencias();
+    });
   }
+  if (sel && uniqueCodes[0]) sel.value = uniqueCodes[0];
 }
+
+function normalizeMunicipioName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function municipioCodeFromChat(value) {
+  const raw = String(value || '').trim();
+  const byCode = MUN_CATALOG.find(m => m.code === raw);
+  if (byCode) return byCode.code;
+  const normalized = normalizeMunicipioName(raw);
+  const byName = MUN_CATALOG.find(m => normalizeMunicipioName(m.name) === normalized);
+  return byName?.code || null;
+}
+
+function setSelectedYearFromChat(year) {
+  const parsed = parseInt(year);
+  if (!YEARS.includes(parsed)) return;
+  SELECTED_YEAR = parsed;
+  const yearSel = document.getElementById('year-select');
+  if (yearSel) yearSel.value = String(parsed);
+  const mapYearSel = document.getElementById('map-year');
+  if (mapYearSel) mapYearSel.value = String(parsed);
+  const idx = YEARS.indexOf(SELECTED_YEAR);
+  const bar = document.getElementById('year-progress');
+  if (bar) bar.style.width = (((idx + 1) / YEARS.length) * 100) + '%';
+}
+
+function syncMapControlsFromChat() {
+  const mapYearSel = document.getElementById('map-year');
+  if (mapYearSel) mapYearSel.value = String(SELECTED_YEAR);
+  const mapVarSel = document.getElementById('map-var');
+  if (mapVarSel) mapVarSel.value = MAP_VAR;
+  const caliToggle = document.getElementById('cali-toggle');
+  if (caliToggle) caliToggle.checked = INCLUDE_CALI;
+  document.querySelectorAll('.map-mode-btn[data-mode]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === MAP_MODE);
+  });
+}
+
+function syncChoroControlsFromChat() {
+  document.querySelectorAll('[data-cv]').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.cv === CHORO_VAR);
+  });
+  document.querySelectorAll('.year-pill-btn').forEach(btn => {
+    btn.classList.toggle('active', parseInt(btn.textContent) === CHORO_YEAR);
+  });
+  const caliToggle = document.getElementById('choro-cali');
+  if (caliToggle) caliToggle.checked = CHORO_CALI;
+}
+
+function applyGeoSaludChatAction(action) {
+  if (!action) return;
+
+  if (action.type === 'navigate') {
+    if (action.anio) setSelectedYearFromChat(action.anio);
+    navigate(action.section || 'dashboard');
+    return;
+  }
+
+  if (action.type === 'show_coropletico') {
+    if (action.anio) setSelectedYearFromChat(action.anio);
+    const variable = action.variable || 'incidencia_dengue';
+    MAP_MODE = variable === 'riesgo' || variable === 'delta' ? variable : 'coropletico';
+    if (variable !== 'riesgo' && variable !== 'delta') MAP_VAR = variable;
+    if (typeof action.includeCali === 'boolean') INCLUDE_CALI = action.includeCali;
+    navigate('geovisor');
+    setTimeout(() => {
+      syncMapControlsFromChat();
+      if (!mapInstance) initMap();
+      else renderMapLayer();
+    }, 180);
+    return;
+  }
+
+  if (action.type === 'show_geovisor') {
+    if (action.anio) setSelectedYearFromChat(action.anio);
+    MAP_MODE = action.mode || 'burbujas';
+    MAP_VAR = action.variable || 'incidencia_dengue';
+    if (typeof action.includeCali === 'boolean') INCLUDE_CALI = action.includeCali;
+    navigate('geovisor');
+    setTimeout(() => {
+      syncMapControlsFromChat();
+      if (!mapInstance) initMap();
+      else renderMapLayer();
+    }, 180);
+    return;
+  }
+
+  if (action.type !== 'show_tendencias') return;
+  const codes = (action.municipios || [])
+    .map(municipioCodeFromChat)
+    .filter(Boolean);
+  if (!codes.length) return;
+
+  TENDENCIA_CODES = [...new Set(codes)].slice(0, 6);
+  TENDENCIA_METRIC = action.metrica === 'casos' ? 'conteo_dengue' : 'incidencia_dengue';
+  SELECTED_MUN = TENDENCIA_CODES[0];
+  navigate('tendencias');
+}
+
+window.applyGeoSaludChatAction = applyGeoSaludChatAction;
 
 // ─── Priorización ─────────────────────────────────────────────────────────────
 function renderPriorizacion() {
@@ -662,9 +871,9 @@ function wireMapControls() {
   }
 
   // Mode buttons
-  document.querySelectorAll('.map-mode-btn').forEach(btn => {
+  document.querySelectorAll('.map-mode-btn[data-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.map-mode-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.map-mode-btn[data-mode]').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       MAP_MODE = btn.dataset.mode;
       // Show choropleth hint if no GeoJSON yet

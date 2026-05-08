@@ -3,212 +3,232 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistemas de Informacion Geoespacial para Decision Publica</title>
+  <meta name="description" content="Laboratorio de Inteligencia Territorial del Programa de Geografia de la Universidad del Valle: ciencia de datos geoespaciales, innovacion territorial y ciudades inteligentes.">
+  <meta name="keywords" content="inteligencia territorial, geografia, Universidad del Valle, ciencia de datos geoespaciales, ciudades inteligentes, observatorios territoriales">
+  <title>Laboratorio de Inteligencia Territorial | Universidad del Valle</title>
   <link rel="stylesheet" href="platform.css">
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand" href="#inicio" aria-label="Inicio">
+  <header class="site-header" id="top">
+    <a class="brand" href="#inicio" aria-label="Ir al inicio">
       <span class="brand-mark" aria-hidden="true"></span>
       <span>
-        <strong>GeoDecision</strong>
-        <small>Sistemas de informacion territorial</small>
+        <strong>Laboratorio de Inteligencia Territorial</strong>
+        <small>Programa de Geografia - Universidad del Valle</small>
       </span>
     </a>
+
+    <button class="menu-toggle" type="button" aria-label="Abrir menu" aria-expanded="false">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
     <nav class="main-nav" aria-label="Navegacion principal">
-      <a href="#sectores">Sectores</a>
-      <a href="#potencial">Potencialidades</a>
-      <a href="#geosalud">GeoSalud</a>
-      <a href="#ruta">Ruta de trabajo</a>
+      <a href="#inicio">Inicio</a>
+      <a href="#laboratorio">Laboratorio</a>
+      <a href="#lineas">Lineas estrategicas</a>
+      <a href="#componentes">Componentes</a>
+      <a href="#proyectos">Proyectos</a>
+      <a href="#tecnologias">Tecnologias</a>
+      <a href="#aliados">Aliados</a>
+      <a href="#contacto">Contacto</a>
     </nav>
-    <a class="header-action" href="Geodata%20Salud.html">Abrir dashboard</a>
   </header>
 
   <main>
-    <section id="inicio" class="hero-section">
-      <canvas id="geo-scene" aria-hidden="true"></canvas>
-      <div class="hero-overlay"></div>
-      <div class="hero-content">
-        <p class="eyebrow">Analitica espacial aplicada</p>
-        <h1>Sistemas de informacion geoespacial para tomar mejores decisiones.</h1>
-        <p class="hero-copy">
-          Integramos datos, mapas, indicadores y modelos analiticos para convertir informacion territorial
-          en decisiones claras para salud publica, ambiente, movilidad, gestion del riesgo y planeacion.
-        </p>
-        <div class="hero-actions" aria-label="Acciones principales">
-          <a class="primary-link" href="#geosalud">Ver caso GeoSalud</a>
-          <a class="secondary-link" href="#sectores">Explorar sectores</a>
-        </div>
-      </div>
-      <aside class="signal-panel" aria-label="Resumen del sistema">
-        <div>
-          <span class="signal-label">Capas integradas</span>
-          <strong id="layer-count">7</strong>
-        </div>
-        <div>
-          <span class="signal-label">Escalas</span>
-          <strong>Municipal</strong>
-        </div>
-        <div>
-          <span class="signal-label">Salida</span>
-          <strong>Decision</strong>
-        </div>
-      </aside>
-    </section>
+    <section class="hero-section" id="inicio" aria-label="Banner principal">
+      <div class="hero-scrim"></div>
 
-    <section id="sectores" class="section-band sector-band">
-      <div class="section-heading">
-        <p class="eyebrow">Sectores de aplicacion</p>
-        <h2>Una misma arquitectura geografica puede responder preguntas distintas.</h2>
-      </div>
-        <div class="sector-layout">
-          <div class="sector-controls" role="tablist" aria-label="Seleccionar sector">
-          <button class="sector-btn active" type="button" data-sector="salud">
-            <img src="assets/sector-salud.svg" alt="">
-            <span>Salud publica</span>
-          </button>
-          <button class="sector-btn" type="button" data-sector="ambiente">
-            <img src="assets/sector-ambiente.svg" alt="">
-            <span>Ambiente</span>
-          </button>
-          <button class="sector-btn" type="button" data-sector="riesgo">
-            <img src="assets/sector-riesgo.svg" alt="">
-            <span>Gestion del riesgo</span>
-          </button>
-          <button class="sector-btn" type="button" data-sector="movilidad">
-            <img src="assets/sector-movilidad.svg" alt="">
-            <span>Movilidad</span>
-          </button>
-          <button class="sector-btn" type="button" data-sector="agro">
-            <img src="assets/sector-agro.svg" alt="">
-            <span>Agro y ruralidad</span>
-          </button>
-          <button class="sector-btn" type="button" data-sector="servicios">
-            <img src="assets/sector-servicios.svg" alt="">
-            <span>Servicios publicos</span>
-          </button>
-        </div>
-        <div class="sector-detail" id="sector-detail" aria-live="polite">
-          <div class="sector-map" aria-hidden="true">
-            <img id="sector-visual" class="sector-visual" src="assets/sector-salud.svg" alt="">
-            <div class="map-grid"></div>
-            <span class="map-node n1"></span>
-            <span class="map-node n2"></span>
-            <span class="map-node n3"></span>
-            <span class="map-node n4"></span>
-            <span class="map-route r1"></span>
-            <span class="map-route r2"></span>
-            <span class="map-zone z1"></span>
-            <span class="map-zone z2"></span>
+      <div class="hero-shell">
+        <div class="hero-copy reveal">
+          <p class="eyebrow" id="hero-kicker">Innovacion territorial</p>
+          <h1 id="hero-title">Laboratorio de Inteligencia Territorial</h1>
+          <p id="hero-text">Ciencia de datos geoespaciales para la gestion inteligente del territorio.</p>
+          <div class="hero-actions">
+            <a class="primary-link" id="hero-action" href="#laboratorio">Conoce el laboratorio</a>
+            <a class="secondary-link" href="Geodata%20Salud.html">Abrir GeoSalud</a>
           </div>
-          <div class="sector-text">
-            <p class="sector-kicker" id="sector-kicker">Salud publica</p>
-            <h3 id="sector-title">Priorizar intervenciones con evidencia territorial.</h3>
-            <p id="sector-copy">
-              Cruza casos, poblacion, equipamientos, movilidad y condiciones ambientales para identificar
-              focos de riesgo y orientar acciones preventivas.
-            </p>
-            <ul id="sector-list">
-              <li>Deteccion de concentraciones espaciales.</li>
-              <li>Priorizacion municipal y barrial.</li>
-              <li>Seguimiento temporal de brotes e indicadores.</li>
-            </ul>
+        </div>
+
+        <div class="hero-panel reveal" aria-hidden="true">
+          <div class="smart-city-card">
+            <div class="city-grid"></div>
+            <span class="city-node n1"></span>
+            <span class="city-node n2"></span>
+            <span class="city-node n3"></span>
+            <span class="city-route r1"></span>
+            <span class="city-route r2"></span>
+            <div class="data-stack">
+              <span>GeoAI</span>
+              <strong id="hero-panel-title">Territorio conectado</strong>
+              <small id="hero-panel-copy">Mapas, modelos, sensores y observatorios.</small>
+            </div>
           </div>
         </div>
       </div>
-    </section>
 
-    <section id="potencial" class="section-band potential-band">
-      <div class="section-heading compact">
-        <p class="eyebrow">Potencialidades</p>
-        <h2>Del dato disperso a un sistema de decision.</h2>
-      </div>
-      <div class="capability-grid">
-        <article class="capability-card">
-          <span class="capability-swatch s-blue"></span>
-          <h3>Integracion de fuentes</h3>
-          <p>Bases institucionales, sensores, encuestas, datos abiertos, capas catastrales y registros operativos en una lectura comun.</p>
-        </article>
-        <article class="capability-card">
-          <span class="capability-swatch s-green"></span>
-          <h3>Analisis espacial</h3>
-          <p>Patrones, clusters, accesibilidad, zonas de influencia, cambios temporales y relaciones entre variables territoriales.</p>
-        </article>
-        <article class="capability-card">
-          <span class="capability-swatch s-red"></span>
-          <h3>Priorizacion</h3>
-          <p>Rankings, umbrales, alertas y escenarios para decidir donde intervenir primero y con que intensidad.</p>
-        </article>
-        <article class="capability-card">
-          <span class="capability-swatch s-gold"></span>
-          <h3>Comunicacion publica</h3>
-          <p>Dashboards, geovisores y reportes claros para equipos tecnicos, directivos y comunidades.</p>
-        </article>
+      <div class="hero-bottom">
+        <div class="slide-dots" aria-label="Seleccionar banner">
+          <button class="slide-dot active" type="button" data-slide="0" aria-label="Banner 1"></button>
+          <button class="slide-dot" type="button" data-slide="1" aria-label="Banner 2"></button>
+          <button class="slide-dot" type="button" data-slide="2" aria-label="Banner 3"></button>
+          <button class="slide-dot" type="button" data-slide="3" aria-label="Banner 4"></button>
+          <button class="slide-dot" type="button" data-slide="4" aria-label="Banner 5"></button>
+        </div>
+        <div class="hero-progress" aria-hidden="true"><span id="hero-progress"></span></div>
       </div>
     </section>
 
-    <section id="geosalud" class="section-band geosalud-band">
-      <div class="case-copy">
-        <p class="eyebrow">Caso demostrativo</p>
-        <h2>Observatorio GeoSalud: dengue en Valle del Cauca.</h2>
+    <section class="section intro-section" id="laboratorio">
+      <div class="section-kicker reveal">Que es el laboratorio</div>
+      <div class="intro-grid">
+        <div class="intro-text reveal">
+          <h2>Ciencia, tecnologia y territorio en una misma plataforma academica.</h2>
+          <p>
+            El Laboratorio de Inteligencia Territorial es una iniciativa academica y tecnologica orientada a fortalecer
+            la formacion, investigacion y extension del Programa de Geografia mediante ciencia de datos geoespaciales,
+            inteligencia artificial, analitica espacial, percepcion remota, observatorios territoriales y tecnologias
+            aplicadas a la gestion inteligente del territorio.
+          </p>
+          <p>
+            El laboratorio articula estudiantes, docentes, investigadores, entidades publicas, empresas de tecnologia,
+            organizaciones territoriales y aliados estrategicos alrededor de retos urbanos y regionales de Cali y el
+            Valle del Cauca.
+          </p>
+        </div>
+
+        <div class="territory-visual reveal" aria-label="Visual territorial conceptual">
+          <img src="assets/sector-ambiente.svg" alt="Visualizacion territorial con capas geoespaciales">
+          <div class="floating-metric m1"><strong>Datos</strong><span>abiertos</span></div>
+          <div class="floating-metric m2"><strong>IA</strong><span>geoespacial</span></div>
+          <div class="floating-metric m3"><strong>GIS</strong><span>interoperable</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section objective-section" aria-label="Objetivo general">
+      <article class="objective-card reveal">
+        <span class="eyebrow">Objetivo general</span>
+        <h2>Crear un Laboratorio de Inteligencia Territorial orientado al desarrollo de investigacion, innovacion, formacion y extension en ciencia de datos geoespaciales.</h2>
         <p>
-          El dashboard de GeoSalud muestra como una plataforma geoespacial puede reunir datos epidemiologicos,
-          indicadores municipales, priorizacion, tendencias y mapas interactivos para apoyar vigilancia y toma de decisiones.
+          Una infraestructura academica y tecnologica para impulsar inteligencia territorial y tecnologias aplicadas a
+          la gestion inteligente del territorio.
         </p>
-        <div class="case-actions">
-          <a class="primary-link dark" href="Geodata%20Salud.html">Abrir dashboard GeoSalud</a>
-          <a class="secondary-link dark" href="aede_dengue.html">Ver modulo AEDE</a>
-        </div>
-      </div>
-      <div class="dashboard-preview" aria-label="Vista previa conceptual del dashboard GeoSalud">
-        <div class="preview-sidebar">
-          <span></span><span></span><span></span><span></span>
-        </div>
-        <div class="preview-main">
-          <div class="preview-kpis">
-            <span></span><span></span><span></span>
-          </div>
-          <div class="preview-map">
-            <span class="preview-area a"></span>
-            <span class="preview-area b"></span>
-            <span class="preview-area c"></span>
-            <span class="preview-dot d1"></span>
-            <span class="preview-dot d2"></span>
-            <span class="preview-dot d3"></span>
-          </div>
-        </div>
-      </div>
+      </article>
     </section>
 
-    <section id="ruta" class="section-band route-band">
-      <div class="section-heading compact">
-        <p class="eyebrow">Ruta de trabajo</p>
-        <h2>Construccion progresiva de observatorios geoespaciales.</h2>
+    <section class="section" id="lineas">
+      <div class="section-heading reveal">
+        <span class="section-kicker">Lineas estrategicas</span>
+        <h2>Campos de trabajo para transformar datos territoriales en conocimiento accionable.</h2>
       </div>
-      <ol class="route-list">
-        <li>
-          <strong>Diagnostico de decision</strong>
-          <span>Definir actores, preguntas, indicadores y decisiones que el sistema debe soportar.</span>
-        </li>
-        <li>
-          <strong>Modelo de datos geografico</strong>
-          <span>Ordenar fuentes, calidad, periodicidad, escalas, geometrias y reglas de actualizacion.</span>
-        </li>
-        <li>
-          <strong>Analitica y visualizacion</strong>
-          <span>Crear tableros, geovisores, alertas, modelos y narrativas visuales para cada usuario.</span>
-        </li>
-        <li>
-          <strong>Operacion y mejora continua</strong>
-          <span>Automatizar cargas, documentar procesos y evolucionar el sistema con nuevas preguntas.</span>
-        </li>
-      </ol>
+      <div class="strategic-grid" id="strategic-lines"></div>
+    </section>
+
+    <section class="section components-section" id="componentes">
+      <div class="section-heading reveal">
+        <span class="section-kicker">Componentes del laboratorio</span>
+        <h2>Infraestructura para analizar, modelar, visualizar y compartir informacion territorial.</h2>
+      </div>
+      <div class="components-grid" id="lab-components"></div>
+    </section>
+
+    <section class="section projects-section" id="proyectos">
+      <div class="section-heading reveal">
+        <span class="section-kicker">Proyectos potenciales</span>
+        <h2>Observatorios, modelos y geovisores para retos urbanos y regionales.</h2>
+      </div>
+      <div class="filter-bar" aria-label="Filtrar proyectos">
+        <button class="filter-btn active" type="button" data-filter="todos">Todos</button>
+        <button class="filter-btn" type="button" data-filter="salud">Salud</button>
+        <button class="filter-btn" type="button" data-filter="ciudad">Ciudad</button>
+        <button class="filter-btn" type="button" data-filter="ambiente">Ambiente</button>
+        <button class="filter-btn" type="button" data-filter="riesgo">Riesgo</button>
+      </div>
+      <div class="project-grid" id="project-grid"></div>
+    </section>
+
+    <section class="section tech-section" id="tecnologias">
+      <div class="section-heading reveal">
+        <span class="section-kicker">Tecnologias del laboratorio</span>
+        <h2>Una matriz de capacidades para datos, mapas, IA, sensores e interoperabilidad.</h2>
+      </div>
+      <div class="tech-cloud" id="tech-cloud"></div>
+    </section>
+
+    <section class="section impact-section" id="impacto">
+      <div class="impact-copy reveal">
+        <span class="section-kicker">Impacto esperado</span>
+        <h2>Capacidades academicas, investigacion aplicada y cooperacion territorial.</h2>
+        <p>
+          El laboratorio posiciona al Programa de Geografia como un referente regional en inteligencia territorial,
+          geografia computacional, analitica geoespacial aplicada y gestion inteligente del territorio.
+        </p>
+      </div>
+      <div class="impact-grid" id="impact-grid"></div>
+    </section>
+
+    <section class="section allies-section" id="aliados">
+      <div class="section-heading reveal">
+        <span class="section-kicker">Aliados estrategicos</span>
+        <h2>Una red para conectar universidad, instituciones, tecnologia y territorio.</h2>
+      </div>
+      <div class="allies-grid" id="allies-grid"></div>
+    </section>
+
+    <section class="section contact-section" id="contacto">
+      <div class="contact-panel reveal">
+        <div class="contact-copy">
+          <span class="section-kicker">Contacto</span>
+          <h2>Conversemos sobre proyectos, investigacion aplicada y cooperacion territorial.</h2>
+          <ul>
+            <li><strong>Programa:</strong> Geografia</li>
+            <li><strong>Institucion:</strong> Universidad del Valle</li>
+            <li><strong>Ciudad:</strong> Cali, Colombia</li>
+            <li><strong>Correo:</strong> Por definir institucionalmente</li>
+          </ul>
+        </div>
+
+        <form class="contact-form" aria-label="Formulario de contacto">
+          <label>
+            Nombre
+            <input type="text" name="nombre" autocomplete="name" required>
+          </label>
+          <label>
+            Correo electronico
+            <input type="email" name="correo" autocomplete="email" required>
+          </label>
+          <label>
+            Institucion
+            <input type="text" name="institucion" autocomplete="organization">
+          </label>
+          <label>
+            Asunto
+            <input type="text" name="asunto" required>
+          </label>
+          <label class="full-field">
+            Mensaje
+            <textarea name="mensaje" rows="5" required></textarea>
+          </label>
+          <button type="submit">Enviar mensaje</button>
+        </form>
+      </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <span>GeoDecision - Desarrollo de sistemas de informacion geoespacial</span>
-    <a href="Geodata%20Salud.html">Dashboard GeoSalud</a>
+    <div>
+      <strong>Laboratorio de Inteligencia Territorial</strong>
+      <p>Ciencia de datos geoespaciales, innovacion territorial y ciudades inteligentes.</p>
+    </div>
+    <nav aria-label="Enlaces rapidos">
+      <a href="#laboratorio">Laboratorio</a>
+      <a href="#lineas">Lineas</a>
+      <a href="#proyectos">Proyectos</a>
+      <a href="Geodata%20Salud.html">GeoSalud</a>
+    </nav>
+    <small>Universidad del Valle - Programa de Geografia. Derechos reservados.</small>
   </footer>
 
   <script src="platform.js"></script>

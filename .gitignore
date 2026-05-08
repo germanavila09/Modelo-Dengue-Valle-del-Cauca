@@ -33,6 +33,11 @@ notebooks/*.html
 *.swo
 *~
 
+# ADK session artifacts
+chatbot/.adk/
+chatbot/observatorio_agent/.adk/
+**/.adk/
+
 # Testing
 .pytest_cache/
 .coverage
