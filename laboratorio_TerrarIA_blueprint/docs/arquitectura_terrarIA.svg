@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="720" viewBox="0 0 1920 720" role="img" aria-labelledby="title desc">
+  <title id="title">Arquitectura TerrarIA</title>
+  <desc id="desc">Arquitectura matriz del Laboratorio TerrarIA con observatorios territoriales.</desc>
+  <defs>
+    <style>
+      .bg { fill: #eef5fc; }
+      .panel { fill: #ffffff; stroke: #d7e4ef; stroke-width: 2; }
+      .title { font: 700 64px Arial, Helvetica, sans-serif; fill: #07182f; letter-spacing: -1px; }
+      .sub { font: 400 24px Arial, Helvetica, sans-serif; fill: #53657d; }
+      .step { font: 800 16px Arial, Helvetica, sans-serif; fill: #009f9a; letter-spacing: 2px; }
+      .h { font: 700 28px Arial, Helvetica, sans-serif; fill: #07182f; }
+      .p { font: 400 20px Arial, Helvetica, sans-serif; fill: #334155; }
+      .code { font: 400 17px Consolas, monospace; fill: #475569; }
+      .line { stroke: #245fcb; stroke-width: 4; marker-end: url(#arrow); }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="10" markerHeight="10" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#245fcb"/>
+    </marker>
+  </defs>
+  <rect width="1920" height="720" class="bg"/>
+  <text x="70" y="105" class="title">Laboratorio TerrarIA</text>
+  <text x="72" y="148" class="sub">Una arquitectura comun para observatorios, modelos y geovisores territoriales.</text>
+
+  <rect x="70" y="220" width="295" height="280" rx="14" class="panel"/>
+  <text x="100" y="265" class="step">01 — PLATAFORMA</text>
+  <text x="100" y="315" class="h">Casa comun</text>
+  <text x="100" y="360" class="p">Landing institucional</text>
+  <text x="100" y="392" class="p">Portafolio de proyectos</text>
+  <text x="100" y="424" class="p">Lineas estrategicas</text>
+  <text x="100" y="466" class="code">platform/frontend</text>
+
+  <line x1="365" y1="360" x2="430" y2="360" class="line"/>
+
+  <rect x="430" y="220" width="295" height="280" rx="14" class="panel"/>
+  <text x="460" y="265" class="step">02 — OBSERVATORIOS</text>
+  <text x="460" y="315" class="h">Dominios</text>
+  <text x="460" y="360" class="p">GeoSalud</text>
+  <text x="460" y="392" class="p">GeoTurismo</text>
+  <text x="460" y="424" class="p">GeoCiudad, Riesgo...</text>
+  <text x="460" y="466" class="code">observatorios/*</text>
+
+  <line x1="725" y1="360" x2="790" y2="360" class="line"/>
+
+  <rect x="790" y="220" width="295" height="280" rx="14" class="panel"/>
+  <text x="820" y="265" class="step">03 — PIPELINE</text>
+  <text x="820" y="315" class="h">Datos a indicadores</text>
+  <text x="820" y="360" class="p">Carga PostGIS</text>
+  <text x="820" y="392" class="p">Limpieza y pivote</text>
+  <text x="820" y="424" class="p">Priorizacion</text>
+  <text x="820" y="466" class="code">src/pipeline.py</text>
+
+  <line x1="1085" y1="360" x2="1150" y2="360" class="line"/>
+
+  <rect x="1150" y="220" width="295" height="280" rx="14" class="panel"/>
+  <text x="1180" y="265" class="step">04 — PRODUCTOS</text>
+  <text x="1180" y="315" class="h">Analitica</text>
+  <text x="1180" y="360" class="p">CSV reproducibles</text>
+  <text x="1180" y="392" class="p">Graficas PNG</text>
+  <text x="1180" y="424" class="p">Mapa HTML</text>
+  <text x="1180" y="466" class="code">outputs/</text>
+
+  <line x1="1445" y1="360" x2="1510" y2="360" class="line"/>
+
+  <rect x="1510" y="220" width="340" height="280" rx="14" class="panel"/>
+  <text x="1540" y="265" class="step">05 — DECISION</text>
+  <text x="1540" y="315" class="h">Geovisores</text>
+  <text x="1540" y="360" class="p">Tableros publicos</text>
+  <text x="1540" y="392" class="p">Informes y presentaciones</text>
+  <text x="1540" y="424" class="p">Transferencia institucional</text>
+  <text x="1540" y="466" class="code">frontend/ + docs/</text>
+
+  <rect x="70" y="565" width="1780" height="72" rx="12" fill="#07182f"/>
+  <text x="110" y="610" font-family="Arial, Helvetica, sans-serif" font-size="24" fill="#ffffff">
+    Comando comun por observatorio: python scripts/run_all.py
+  </text>
+</svg>

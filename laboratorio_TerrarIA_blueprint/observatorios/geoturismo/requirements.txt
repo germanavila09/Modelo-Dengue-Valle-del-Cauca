@@ -1,0 +1,11 @@
+pandas
+geopandas
+sqlalchemy
+psycopg2-binary
+python-dotenv
+matplotlib
+seaborn
+folium
+branca
+scikit-learn
+pytest

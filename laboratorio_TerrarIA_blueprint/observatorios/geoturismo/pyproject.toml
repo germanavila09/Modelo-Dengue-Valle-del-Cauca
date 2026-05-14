@@ -1,0 +1,21 @@
+[project]
+name = "observatorio-geoturismo"
+version = "0.1.0"
+description = "Observatorio de Turismo Inteligente del Laboratorio TerrarIA"
+requires-python = ">=3.10"
+dependencies = [
+  "pandas",
+  "geopandas",
+  "sqlalchemy",
+  "psycopg2-binary",
+  "python-dotenv",
+  "matplotlib",
+  "seaborn",
+  "folium",
+  "branca",
+  "scikit-learn",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

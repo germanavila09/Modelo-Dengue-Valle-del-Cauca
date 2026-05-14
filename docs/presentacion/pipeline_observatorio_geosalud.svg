@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="720" viewBox="0 0 1920 720" role="img" aria-labelledby="title desc">
+  <title id="title">Pipeline reproducible del Observatorio GeoSalud</title>
+  <desc id="desc">Diagrama de cinco pasos del pipeline: carga, limpieza, pivote, visualización y mapa.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f2eee8; }
+      .panel { fill: #fbfaf7; }
+      .h1 {
+        font: 500 74px Arial, Helvetica, sans-serif;
+        fill: #111827;
+        letter-spacing: -1px;
+      }
+      .step {
+        font: 700 17px Arial, Helvetica, sans-serif;
+        fill: #1d4ed8;
+        letter-spacing: 2px;
+      }
+      .step-muted {
+        font: 700 17px Arial, Helvetica, sans-serif;
+        fill: #64748b;
+        letter-spacing: 2px;
+      }
+      .heading {
+        font: 500 27px Arial, Helvetica, sans-serif;
+        fill: #111827;
+      }
+      .code {
+        font: 400 13px "Consolas", "Courier New", monospace;
+        fill: #0f172a;
+      }
+      .body {
+        font: 400 14px Arial, Helvetica, sans-serif;
+        fill: #111827;
+      }
+      .chip { fill: #efede8; }
+      .rule { stroke: #e7e2da; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect width="1920" height="720" class="bg"/>
+  <text x="16" y="76" class="h1">Cinco pasos, un comando, salida reproducible.</text>
+  <rect x="12" y="106" width="1896" height="540" class="panel"/>
+
+  <line x1="382" y1="134" x2="382" y2="610" class="rule"/>
+  <line x1="764" y1="134" x2="764" y2="610" class="rule"/>
+  <line x1="1146" y1="134" x2="1146" y2="610" class="rule"/>
+  <line x1="1528" y1="134" x2="1528" y2="610" class="rule"/>
+
+  <g transform="translate(28 146)">
+    <text x="0" y="0" class="step">01 — CARGA</text>
+    <text x="0" y="46" class="heading">PostGIS</text>
+
+    <rect x="-2" y="72" width="92" height="20" class="chip"/>
+    <text x="8" y="87" class="code">src/db.py</text>
+    <text x="0" y="116" class="body">crear_engine() + psycopg2</text>
+    <text x="0" y="144" class="body">cargar_datos(engine)</text>
+    <text x="0" y="172" class="body">Tabla valle_mun + geometrías</text>
+    <text x="0" y="200" class="body">42 municipios · 2019-2026</text>
+    <text x="0" y="246" class="code">python scripts/run_all.py</text>
+  </g>
+
+  <g transform="translate(410 146)">
+    <text x="0" y="0" class="step-muted">02 — LIMPIEZA</text>
+    <text x="0" y="46" class="heading">Normalización</text>
+
+    <rect x="-2" y="72" width="142" height="20" class="chip"/>
+    <text x="8" y="87" class="code">src/transform.py</text>
+    <text x="0" y="116" class="body">limpiar_datos(gdf)</text>
+    <text x="0" y="144" class="body">MPIO_CNMBR → upper / strip</text>
+    <text x="0" y="172" class="body">Año, conteo y población a numérico</text>
+    <text x="0" y="200" class="body">Encoding UTF-8 y nulos controlados</text>
+    <text x="0" y="246" class="code">GeoDataFrame limpio</text>
+  </g>
+
+  <g transform="translate(792 146)">
+    <text x="0" y="0" class="step-muted">03 — PIVOT</text>
+    <text x="0" y="46" class="heading">Priorización</text>
+
+    <rect x="-2" y="72" width="142" height="20" class="chip"/>
+    <text x="8" y="87" class="code">src/transform.py</text>
+    <text x="0" y="116" class="body">construir_pivot() → municipio × año</text>
+    <text x="0" y="144" class="body">calcular_priorizacion() → total + tendencia</text>
+    <text x="0" y="172" class="body">Export: priorizacion_municipios.csv</text>
+    <text x="0" y="200" class="body">Tabla pivote para coropléticos</text>
+    <text x="0" y="246" class="code">outputs/priorizacion_municipios.csv</text>
+  </g>
+
+  <g transform="translate(1174 146)">
+    <text x="0" y="0" class="step-muted">04 — VISUAL</text>
+    <text x="0" y="46" class="heading">Gráficas</text>
+
+    <rect x="-2" y="72" width="92" height="20" class="chip"/>
+    <text x="8" y="87" class="code">src/viz.py</text>
+    <text x="0" y="116" class="body">matplotlib + seaborn</text>
+    <text x="0" y="144" class="body">casos_por_anio · incidencia</text>
+    <text x="0" y="172" class="body">top_municipios · heatmap · scatter</text>
+    <text x="0" y="200" class="body">Serie temporal por municipio</text>
+    <text x="0" y="246" class="code">outputs/graficas/*.png</text>
+  </g>
+
+  <g transform="translate(1556 146)">
+    <text x="0" y="0" class="step-muted">05 — MAPA</text>
+    <text x="0" y="46" class="heading">Folium / HTML</text>
+
+    <rect x="-2" y="72" width="100" height="20" class="chip"/>
+    <text x="8" y="87" class="code">src/mapa.py</text>
+    <text x="0" y="116" class="body">generar_mapa_html()</text>
+    <text x="0" y="144" class="body">Coroplético + heatmap de puntos</text>
+    <text x="0" y="172" class="body">Filtros por año, variable y municipio</text>
+    <text x="0" y="200" class="body">Salida embebible en navegador</text>
+    <text x="0" y="246" class="code">outputs/mapa_actual.html</text>
+  </g>
+
+  <text x="28" y="606" class="body">Entrada: PostgreSQL/PostGIS con registros históricos de dengue.</text>
+  <text x="792" y="606" class="body">Orquestador: src/pipeline.py ejecutado desde scripts/run_all.py.</text>
+  <text x="1556" y="606" class="body">Salida: artefactos reproducibles para informe y dashboard.</text>
+</svg>
