@@ -17,6 +17,7 @@ const I18N = {
     casos_anio:'Casos por año', top_mun:'Top municipios',
     pob_inc:'Población vs Incidencia', serie_hist:'Serie histórica',
     seleccionar_mun:'Seleccionar municipio', año:'Año',
+    demografia:'Demografía', poblacion_total:'Población total',
     fuente:'Fuente: Secretaría de Salud, Valle del Cauca',
     update:'Última actualización', loading:'Cargando datos...',
   },
@@ -36,6 +37,7 @@ const I18N = {
     casos_anio:'Cases by year', top_mun:'Top municipalities',
     pob_inc:'Population vs Incidence', serie_hist:'Historical series',
     seleccionar_mun:'Select municipality', año:'Year',
+    demografia:'Demographics', poblacion_total:'Total population',
     fuente:'Source: Health Secretary, Valle del Cauca',
     update:'Last update', loading:'Loading data...',
   }
@@ -53,6 +55,12 @@ let TENDENCIA_METRIC = 'incidencia_dengue';
 let mapInstance = null;
 let mapLayers = [];
 let charts = {};
+
+// Demografía state
+let demoMapInstance = null;
+let demoMapLayers = [];
+let DEMO_SELECTED_MUN = 'VALLE';
+let DEMO_SELECTED_CYCLE = 'ALL';
 
 // Coropléticos state
 let choroMap = null;
@@ -85,12 +93,14 @@ function navigate(section) {
   const titles = { hexagonos: 'Hexágonos', aede: 'AEDE', forecasting: 'IA & ML Forecasting', chatbot: 'Asistente IA' };
   document.getElementById('header-title').textContent = titles[section] || t(section);
   if (section === 'geovisor' && mapInstance) { setTimeout(() => mapInstance.invalidateSize(), 100); }
+  if (section === 'demografia' && demoMapInstance) { setTimeout(() => demoMapInstance.invalidateSize(), 100); }
   // Render charts AFTER section is visible — setTimeout ensures full CSS layout
   setTimeout(() => {
     if (section === 'indicadores') renderIndicadores();
     if (section === 'tendencias') renderTendencias();
     if (section === 'priorizacion') renderPriorizacion();
     if (section === 'dashboard') renderDashboard();
+    if (section === 'demografia') renderDemografia();
     if (section === 'forecasting' && window.refreshForecastingModule) window.refreshForecastingModule();
   }, 50);
 }
@@ -192,11 +202,16 @@ function animateCount(el, target, duration = 1200, decimals = 0) {
     const progress = Math.min((now - start) / duration, 1);
     const ease = 1 - Math.pow(1 - progress, 3);
     const val = target * ease;
+    let formatted = "";
     if (decimals === -1) {
-      el.textContent = Math.round(val).toString();
+      formatted = Math.round(val).toString();
     } else {
-      el.textContent = decimals > 0 ? fmtDec(val) : fmt(Math.round(val));
+      formatted = decimals > 0 ? fmtDec(val) : fmt(Math.round(val));
     }
+    if (el.id && el.id.includes('pct')) {
+      formatted += '%';
+    }
+    el.textContent = formatted;
     if (progress < 1) requestAnimationFrame(update);
   };
   requestAnimationFrame(update);
@@ -680,12 +695,58 @@ function normalizeMunicipioName(value) {
 }
 
 function municipioCodeFromChat(value) {
-  const raw = String(value || '').trim();
+  let raw = String(value || '').trim();
+  
+  // Resilient mapping for database-corrupted or differently formatted strings
+  const corruptMap = {
+    'JAMUND?': 'Jamundí',
+    'TULU?': 'Tuluá',
+    'ALCAL?': 'Alcalá',
+    'ANDALUC?A': 'Andalucía',
+    'BOL?VAR': 'Bolívar',
+    'EL ?GUILA': 'El Águila',
+    'GUACAR?': 'Guacarí',
+    'LA UNI?N': 'La Unión',
+    'RIOFR?O': 'Riofrío',
+    'JAMUNDI': 'Jamundí',
+    'TULUA': 'Tuluá',
+    'ALCALA': 'Alcalá',
+    'ANDALUCIA': 'Andalucía',
+    'BOLIVAR': 'Bolívar',
+    'EL AGUILA': 'El Águila',
+    'GUACARI': 'Guacarí',
+    'LA UNION': 'La Unión',
+    'RIOFRIO': 'Riofrío'
+  };
+
+  const upperRaw = raw.toUpperCase();
+  if (corruptMap[upperRaw]) {
+    raw = corruptMap[upperRaw];
+  }
+
   const byCode = MUN_CATALOG.find(m => m.code === raw);
   if (byCode) return byCode.code;
+
   const normalized = normalizeMunicipioName(raw);
   const byName = MUN_CATALOG.find(m => normalizeMunicipioName(m.name) === normalized);
-  return byName?.code || null;
+  if (byName) return byName.code;
+
+  // Fallback fuzzy/partial match
+  const normalizedNoSpaces = normalized.replace(/\s+/g, '');
+  const byNameNoSpaces = MUN_CATALOG.find(m => {
+    const normName = normalizeMunicipioName(m.name).replace(/\s+/g, '');
+    return normName === normalizedNoSpaces || normName.includes(normalizedNoSpaces) || normalizedNoSpaces.includes(normName);
+  });
+  if (byNameNoSpaces) return byNameNoSpaces.code;
+
+  // Support common aliases
+  if (normalized === 'buga') {
+    const bugaObj = MUN_CATALOG.find(m => m.name.toLowerCase().includes('buga'));
+    if (bugaObj) return bugaObj.code;
+  }
+
+  console.warn(`municipioCodeFromChat: Could not resolve code for "${value}"`);
+  return null;
 }
 
 function setSelectedYearFromChat(year) {
@@ -1180,6 +1241,526 @@ function wireChoroControls() {
     CHORO_CALI = e.target.checked;
     if (choroMap) renderChoroLayer();
   });
+}
+
+// ─── Demografía ───────────────────────────────────────────────────────────────
+// Redefinición de helpers para escalado demográfico según año seleccionado
+// Redefinición de helpers para escalado demográfico según año seleccionado y ciclo de vida
+getDemoTotal = function(code) {
+  const base = DEMO_MUN_TOTAL[code] || DEMO_MUN_TOTAL['VALLE'];
+  let realPop = 0;
+  if (code === 'VALLE') {
+    realPop = GEODATA.filter(d => d.año === SELECTED_YEAR).reduce((acc, curr) => acc + (curr.población || 0), 0);
+  } else {
+    const match = GEODATA.find(d => d.MPIO_CCDGO === code && d.año === SELECTED_YEAR);
+    realPop = (match && match.población) ? match.población : base.poblacion_total;
+  }
+  const basePop = base.poblacion_total || 1;
+  const factor = realPop / basePop;
+
+  let baseMasc = 0;
+  let baseFeme = 0;
+
+  if (DEMO_SELECTED_CYCLE === 'ALL') {
+    baseMasc = base.poblacion_masculina;
+    baseFeme = base.poblacion_femenina;
+  } else {
+    const cyclesList = DEMO_CICLOS[code] || DEMO_CICLOS['VALLE'] || [];
+    cyclesList.forEach(item => {
+      if (item.ciclo_nombre === DEMO_SELECTED_CYCLE) {
+        if (item.sexo === 'M') baseMasc += item.cantidad;
+        if (item.sexo === 'F') baseFeme += item.cantidad;
+      }
+    });
+  }
+
+  const baseTotal = baseMasc + baseFeme;
+  const scaledTotal = Math.round(baseTotal * factor);
+  const scaledMasc = Math.round(baseMasc * factor);
+  const scaledFeme = Math.round(baseFeme * factor);
+
+  const pctMasc = scaledTotal > 0 ? parseFloat(((scaledMasc / scaledTotal) * 100).toFixed(1)) : 0.0;
+  const pctFeme = scaledTotal > 0 ? parseFloat(((scaledFeme / scaledTotal) * 100).toFixed(1)) : 0.0;
+
+  return {
+    codigo_dane: base.codigo_dane,
+    nombre: base.nombre,
+    poblacion_total: scaledTotal,
+    poblacion_masculina: scaledMasc,
+    poblacion_femenina: scaledFeme,
+    pct_masculino: pctMasc,
+    pct_femenino: pctFeme
+  };
+};
+
+getDemoPiramide = function(code) {
+  const baseTotal = DEMO_MUN_TOTAL[code] || DEMO_MUN_TOTAL['VALLE'];
+  let realPop = 0;
+  if (code === 'VALLE') {
+    realPop = GEODATA.filter(d => d.año === SELECTED_YEAR).reduce((acc, curr) => acc + (curr.población || 0), 0);
+  } else {
+    const match = GEODATA.find(d => d.MPIO_CCDGO === code && d.año === SELECTED_YEAR);
+    realPop = (match && match.población) ? match.población : baseTotal.poblacion_total;
+  }
+  const basePop = baseTotal.poblacion_total || 1;
+  const factor = realPop / basePop;
+
+  const baseList = DEMO_PIRAMIDE[code] || DEMO_PIRAMIDE['VALLE'] || [];
+  return baseList.map(item => {
+    const newQty = Math.round(item.cantidad * factor);
+    return {
+      ...item,
+      cantidad: newQty,
+      cantidad_piramide: item.sexo === 'M' ? -newQty : newQty
+    };
+  });
+};
+
+getDemoCiclos = function(code) {
+  const baseTotal = DEMO_MUN_TOTAL[code] || DEMO_MUN_TOTAL['VALLE'];
+  let realPop = 0;
+  if (code === 'VALLE') {
+    realPop = GEODATA.filter(d => d.año === SELECTED_YEAR).reduce((acc, curr) => acc + (curr.población || 0), 0);
+  } else {
+    const match = GEODATA.find(d => d.MPIO_CCDGO === code && d.año === SELECTED_YEAR);
+    realPop = (match && match.población) ? match.población : baseTotal.poblacion_total;
+  }
+  const basePop = baseTotal.poblacion_total || 1;
+  const factor = realPop / basePop;
+
+  const baseList = DEMO_CICLOS[code] || DEMO_CICLOS['VALLE'] || [];
+  
+  // Consolidar M y F por ciclo_nombre / id_ciclo
+  const grouped = {};
+  baseList.forEach(item => {
+    const key = item.id_ciclo;
+    if (!grouped[key]) {
+      grouped[key] = {
+        ciclo_nombre: item.ciclo_nombre,
+        id_ciclo: item.id_ciclo,
+        cantidad: 0
+      };
+    }
+    grouped[key].cantidad += item.cantidad;
+  });
+
+  return Object.values(grouped).map(item => ({
+    ...item,
+    cantidad: Math.round(item.cantidad * factor)
+  })).sort((a, b) => a.id_ciclo - b.id_ciclo);
+};
+
+function initDemoMap() {
+  if (demoMapInstance) return;
+  demoMapInstance = L.map('demo-map', { zoomControl: false, preferCanvas: true })
+    .setView([3.8, -76.5], 8);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '©OpenStreetMap ©CARTO', subdomains: 'abcd', maxZoom: 19
+  }).addTo(demoMapInstance);
+
+  L.control.zoom({ position: 'bottomright' }).addTo(demoMapInstance);
+  
+  // Wire up dropdown population
+  const sel = document.getElementById('demo-mun-select');
+  if (sel) {
+    sel.innerHTML = '';
+    // Add "Valle del Cauca (Total)" as first option
+    const optValle = document.createElement('option');
+    optValle.value = 'VALLE';
+    optValle.textContent = 'Valle del Cauca (Total)';
+    sel.appendChild(optValle);
+    
+    // Sort and add other municipalities
+    const munList = Object.values(DEMO_MUN_TOTAL)
+      .filter(m => m.codigo_dane !== 'VALLE')
+      .sort((a, b) => a.nombre.localeCompare(b.nombre));
+      
+    munList.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.codigo_dane;
+      opt.textContent = m.nombre;
+      sel.appendChild(opt);
+    });
+    
+    sel.addEventListener('change', e => {
+      DEMO_SELECTED_MUN = e.target.value;
+      updateDemoDashboard();
+      highlightDemoMunicipality(DEMO_SELECTED_MUN);
+    });
+  }
+
+  const cycleSel = document.getElementById('demo-cycle-select');
+  if (cycleSel) {
+    cycleSel.value = DEMO_SELECTED_CYCLE;
+    cycleSel.addEventListener('change', e => {
+      DEMO_SELECTED_CYCLE = e.target.value;
+      updateDemoDashboard();
+      renderDemoMapLayer();
+    });
+  }
+  
+  renderDemoMapLayer();
+}
+
+let demoChoroplethLegend = null;
+function renderDemoMapLayer() {
+  demoMapLayers.forEach(l => demoMapInstance.removeLayer(l));
+  demoMapLayers = [];
+  if (demoChoroplethLegend) { demoMapInstance.removeControl(demoChoroplethLegend); demoChoroplethLegend = null; }
+
+  const geomSrc = (typeof window !== 'undefined' && window.GEO_MUNI)
+    ? window.GEO_MUNI
+    : buildMockGeoJSON();
+
+  const vals = Object.keys(DEMO_MUN_TOTAL)
+    .filter(code => code !== 'VALLE')
+    .map(code => getDemoTotal(code).poblacion_total)
+    .sort((a, b) => a - b);
+  const q = f => vals[Math.max(0, Math.floor((vals.length - 1) * f))];
+  const bins = [q(0.2), q(0.4), q(0.6), q(0.8)];
+
+  const getDemoColor = val => {
+    if (val == null) return '#111827';
+    if (val > bins[3]) return '#06b6d4'; // neon cyan
+    if (val > bins[2]) return '#3b82f6'; // bright blue
+    if (val > bins[1]) return '#1d4ed8'; // blue
+    if (val > bins[0]) return '#1e3a8a'; // dark blue
+    return '#0f172a'; // very dark blue
+  };
+
+  const layer = L.geoJSON(geomSrc, {
+    style: feat => {
+      const code = feat.properties?.MPIO_CCDGO;
+      const rec = getDemoTotal(code);
+      const col = getDemoColor(rec?.poblacion_total);
+      return {
+        fillColor: col, color: '#060a12',
+        weight: 1,
+        fillOpacity: 0.80
+      };
+    },
+    onEachFeature: (feat, lyr) => {
+      const code = feat.properties?.MPIO_CCDGO;
+      const name = feat.properties?.MPIO_CNMBR;
+      const rec = getDemoTotal(code);
+      if (rec) {
+        const col = getDemoColor(rec.poblacion_total);
+        const popLabel = DEMO_SELECTED_CYCLE === 'ALL' ? 'Población total' : `Pob. (${DEMO_SELECTED_CYCLE})`;
+        const tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:180px">
+          <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px;font-size:14px">${rec.nombre}</div>
+          <div style="color:#94a3b8;font-size:12px;margin-bottom:2px">${popLabel}: <b style="color:#e2e8f8">${fmt(rec.poblacion_total)}</b></div>
+          <div style="color:#94a3b8;font-size:12px;margin-bottom:2px">Hombres: <b style="color:#e2e8f8">${fmt(rec.poblacion_masculina)}</b> (${rec.pct_masculino}%)</div>
+          <div style="color:#94a3b8;font-size:12px;margin-bottom:2px">Mujeres: <b style="color:#e2e8f8">${fmt(rec.poblacion_femenina)}</b> (${rec.pct_femenino}%)</div>
+        </div>`;
+        lyr.bindTooltip(tip, { className: 'geo-tooltip', sticky: true });
+        
+        lyr.on({
+          mouseover: e => e.target.setStyle({ weight: 2.5, fillOpacity: 0.96, color: '#ffffff44' }),
+          mouseout:  e => {
+            if (code !== DEMO_SELECTED_MUN) {
+              layer.resetStyle(e.target);
+            } else {
+              e.target.setStyle({ weight: 3, color: '#22d3ee', fillOpacity: 0.9 });
+            }
+          },
+          click: () => {
+            DEMO_SELECTED_MUN = code;
+            const sel = document.getElementById('demo-mun-select');
+            if (sel) sel.value = code;
+            updateDemoDashboard();
+            highlightDemoMunicipality(code);
+          }
+        });
+      } else {
+        lyr.bindTooltip(name + ' — sin datos demográficos', { className: 'geo-tooltip' });
+      }
+    }
+  }).addTo(demoMapInstance);
+  
+  demoMapLayers.push(layer);
+  try { demoMapInstance.fitBounds(layer.getBounds(), { padding: [16, 16] }); } catch(e) {}
+
+  // Add map legend
+  demoChoroplethLegend = L.control({ position: 'bottomright' });
+  demoChoroplethLegend.onAdd = () => {
+    const div = L.DomUtil.create('div');
+    div.style.cssText = 'background:#0c1221ee;border:1px solid #1c2d4a;border-radius:8px;padding:10px 12px;font-family:Space Grotesk,sans-serif;font-size:11px;color:#94a3b8;min-width:140px';
+    const labels = [
+      `< ${fmt(Math.round(bins[0]))}`,
+      `${fmt(Math.round(bins[0]))}–${fmt(Math.round(bins[1]))}`,
+      `${fmt(Math.round(bins[1]))}–${fmt(Math.round(bins[2]))}`,
+      `${fmt(Math.round(bins[2]))}–${fmt(Math.round(bins[3]))}`,
+      `> ${fmt(Math.round(bins[3]))}`
+    ];
+    const colors = ['#0f172a', '#1e3a8a', '#1d4ed8', '#3b82f6', '#06b6d4'];
+    const legendTitle = DEMO_SELECTED_CYCLE === 'ALL' ? 'Población por Municipio' : `Pob. (${DEMO_SELECTED_CYCLE})`;
+    div.innerHTML = `<div style="font-weight:600;color:#e2e8f8;margin-bottom:7px">${legendTitle}</div>`
+      + colors.map((c, i) => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+          <span style="width:12px;height:12px;border-radius:3px;background:${c};display:inline-block;flex-shrink:0"></span>
+          <span>${labels[i]}</span></div>`).join('');
+    return div;
+  };
+  demoChoroplethLegend.addTo(demoMapInstance);
+}
+
+function highlightDemoMunicipality(code) {
+  if (!demoMapInstance || !demoMapLayers.length) return;
+  const layerGroup = demoMapLayers[0];
+  if (code === 'VALLE') {
+    layerGroup.eachLayer(lyr => layerGroup.resetStyle(lyr));
+    try {
+      demoMapInstance.fitBounds(layerGroup.getBounds(), { padding: [16, 16] });
+    } catch(e) {}
+    return;
+  }
+  layerGroup.eachLayer(lyr => {
+    const lyrCode = lyr.feature.properties?.MPIO_CCDGO;
+    if (lyrCode === code) {
+      lyr.setStyle({ weight: 3, color: '#22d3ee', fillOpacity: 0.9 });
+      try {
+        demoMapInstance.setView(lyr.getBounds().getCenter(), 10);
+      } catch(e) {}
+    } else {
+      layerGroup.resetStyle(lyr);
+    }
+  });
+}
+
+function updateDemoDashboard() {
+  const munCode = DEMO_SELECTED_MUN;
+  const totalData = getDemoTotal(munCode);
+  
+  // Update KPIs with count animation
+  const elTotal = document.getElementById('demo-kpi-total');
+  const elPctMasc = document.getElementById('demo-kpi-pct-masc');
+  const elPctFem = document.getElementById('demo-kpi-pct-fem');
+  const elMasc = document.getElementById('demo-kpi-masc');
+  const elFem = document.getElementById('demo-kpi-fem');
+  
+  if (elTotal) animateCount(elTotal, totalData.poblacion_total, 800);
+  if (elPctMasc) animateCount(elPctMasc, totalData.pct_masculino, 800, 1);
+  if (elPctFem) animateCount(elPctFem, totalData.pct_femenino, 800, 1);
+  if (elMasc) animateCount(elMasc, totalData.poblacion_masculina, 800);
+  if (elFem) animateCount(elFem, totalData.poblacion_femenina, 800);
+
+  // Redraw Charts
+  renderDemoPyramidChart(munCode);
+  renderDemoCyclesChart(munCode);
+}
+
+function renderDemoPyramidChart(code) {
+  const ctx = document.getElementById('demo-chart-pyramid');
+  if (!ctx) return;
+  
+  if (charts['demoPyramid']) charts['demoPyramid'].destroy();
+  
+  const CYCLE_PYRAMID_GROUPS = {
+    'Primera infancia': ['DE 00 A 04', 'DE 05 A 09'],
+    'Infancia': ['DE 05 A 09', 'DE 10 A 14'],
+    'Adolescencia': ['DE 10 A 14', 'DE 15 A 19'],
+    'Juventud': ['DE 15 A 19', 'DE 20 A 24', 'DE 25 A 29'],
+    'Adultez': ['DE 30 A 34', 'DE 35 A 39', 'DE 40 A 44', 'DE 45 A 49', 'DE 50 A 54', 'DE 55 A 59'],
+    'Vejez': ['DE 60 A 64', 'DE 65 A 69', 'DE 70 A 74', 'DE 75 A 79', 'DE 80 A 84', 'DE 85 y Más']
+  };
+
+  let rawData = getDemoPiramide(code);
+  if (DEMO_SELECTED_CYCLE !== 'ALL') {
+    const allowed = CYCLE_PYRAMID_GROUPS[DEMO_SELECTED_CYCLE] || [];
+    rawData = rawData.filter(item => allowed.includes(item.grupo_quinquenal));
+  }
+  const sortedData = [...rawData].sort((a, b) => a.orden - b.orden);
+  
+  const labels = [];
+  const maleData = [];
+  const femaleData = [];
+  
+  const groups = {};
+  sortedData.forEach(item => {
+    if (!groups[item.grupo_quinquenal]) {
+      groups[item.grupo_quinquenal] = { M: 0, F: 0 };
+      labels.push(item.grupo_quinquenal.replace('DE ', ''));
+    }
+    groups[item.grupo_quinquenal][item.sexo] = item.cantidad_piramide;
+  });
+  
+  const uniqueLabels = [...new Set(labels)];
+  
+  uniqueLabels.forEach(lbl => {
+    const key = 'DE ' + lbl;
+    const grp = groups[key] || groups[lbl] || { M: 0, F: 0 };
+    maleData.push(grp.M);
+    femaleData.push(grp.F);
+  });
+  
+  charts['demoPyramid'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: uniqueLabels,
+      datasets: [
+        {
+          label: 'Hombres',
+          data: maleData,
+          backgroundColor: '#3b82f688',
+          borderColor: '#3b82f6',
+          borderWidth: 1,
+          borderRadius: { topLeft: 4, bottomLeft: 4 },
+          borderSkipped: 'right'
+        },
+        {
+          label: 'Mujeres',
+          data: femaleData,
+          backgroundColor: '#ec489988',
+          borderColor: '#ec4899',
+          borderWidth: 1,
+          borderRadius: { topRight: 4, bottomRight: 4 },
+          borderSkipped: 'left'
+        }
+      ]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#94a3b8', font: { family: 'Space Grotesk', size: 10 } } },
+        tooltip: {
+          backgroundColor: '#0c1221',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#e2e8f8',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: context => {
+              const label = context.dataset.label;
+              const val = Math.abs(context.parsed.x);
+              return ` ${label}: ${fmt(val)}`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#162038' },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'JetBrains Mono', size: 9 },
+            callback: value => fmt(Math.abs(value))
+          }
+        },
+        y: {
+          grid: { display: false },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+        }
+      }
+    }
+  });
+}
+
+function renderDemoCyclesChart(code) {
+  const ctx = document.getElementById('demo-chart-cycles');
+  if (!ctx) return;
+  
+  if (charts['demoCycles']) charts['demoCycles'].destroy();
+  
+  const rawData = getDemoCiclos(code);
+  const sortedData = [...rawData].sort((a, b) => a.id_ciclo - b.id_ciclo);
+  
+  const labels = sortedData.map(d => d.ciclo_nombre);
+  const values = sortedData.map(d => d.cantidad);
+  
+  const colors = ['#22d3ee', '#34d399', '#fbbf24', '#fb923c', '#3b82f6', '#a78bfa'];
+  
+  charts['demoCycles'] = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        data: values,
+        backgroundColor: sortedData.map((d, index) => {
+          const color = colors[index % colors.length];
+          if (DEMO_SELECTED_CYCLE === 'ALL' || d.ciclo_nombre === DEMO_SELECTED_CYCLE) {
+            return color + '88';
+          } else {
+            return color + '18'; // attenuated background
+          }
+        }),
+        borderColor: sortedData.map((d, index) => {
+          const color = colors[index % colors.length];
+          if (DEMO_SELECTED_CYCLE === 'ALL' || d.ciclo_nombre === DEMO_SELECTED_CYCLE) {
+            return color;
+          } else {
+            return color + '33'; // attenuated border
+          }
+        }),
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0c1221',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#e2e8f8',
+          bodyColor: '#94a3b8',
+          callbacks: {
+            label: context => ` Población: ${fmt(context.parsed.y)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { color: '#64748b', font: { family: 'Space Grotesk', size: 9 } }
+        },
+        y: {
+          grid: { color: '#162038' },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 }, callback: v => fmt(v) }
+        }
+      }
+    }
+  });
+}
+
+
+function renderDemografia() {
+  const isFirstLoad = !demoMapInstance;
+  initDemoMap();
+  if (!isFirstLoad) {
+    renderDemoMapLayer();
+  }
+  updateDemoDashboard();
+  if (demoMapInstance) {
+    setTimeout(() => demoMapInstance.invalidateSize(), 50);
+  }
+}
+
+function buildMockGeoJSON() {
+  const SIDES = 8;
+  const features = (typeof MUN_CATALOG !== 'undefined' ? MUN_CATALOG : []).map(mun => {
+    const coords = [];
+    const radius = mun.r || 0.05;
+    for (let i = 0; i <= SIDES; i++) {
+      const angle = (2 * Math.PI * i / SIDES) - Math.PI / 2;
+      const dlng = radius * Math.cos(angle);
+      const dlat = radius * 1.1 * Math.sin(angle);
+      coords.push([
+        parseFloat((mun.lng + dlng).toFixed(6)),
+        parseFloat((mun.lat + dlat).toFixed(6))
+      ]);
+    }
+    return {
+      type: 'Feature',
+      properties: { MPIO_CCDGO: mun.code, MPIO_CNMBR: mun.name, lat: mun.lat, lng: mun.lng },
+      geometry: { type: 'Polygon', coordinates: [coords] }
+    };
+  });
+  return { type: 'FeatureCollection', features, _mock: true };
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

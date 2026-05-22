@@ -119,7 +119,7 @@ class TestForecastExecution:
         mock_pronosticar.return_value = mock_forecast
         mock_grafica.return_value = _mock_fig()
 
-        result = ejecutar_forecast(municipio="CALI", todos=False, ruta_salida=str(tmp_path))
+        result = ejecutar_forecast(municipio="Cali", todos=False, ruta_salida=str(tmp_path))
 
         assert isinstance(result, pd.DataFrame)
         mock_pronosticar.assert_called_once_with(mock_engine, "76001", periodos=52, accelerator="gpu")

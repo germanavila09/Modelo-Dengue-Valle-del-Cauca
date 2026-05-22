@@ -45,6 +45,10 @@ def abrir_modulo_observatorio(
         "mapa": "coropletico",
         "coropletico": "coropletico",
         "coropleticos": "coropletico",
+        "demografia": "demografia",
+        "demografía": "demografia",
+        "poblacion": "demografia",
+        "población": "demografia",
     }
     section = aliases.get((modulo or "").strip().lower(), "dashboard")
     action_year = anio or None

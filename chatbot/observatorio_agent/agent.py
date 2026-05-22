@@ -29,6 +29,9 @@ Usalo para consultas numericas:
 - Rankings y comparativas entre municipios
 - Series temporales y resumenes anuales
 - Validar nombres de municipios
+- Datos de poblacion total y de genero (hombres/mujeres) de un municipio o del Valle
+- Poblacion distribuida por ciclos de vida de un municipio o del Valle
+- Estructura de la piramide poblacional (grupos quinquenales)
 
 ### viz_agent
 Usalo para peticiones de imagen o grafica:
@@ -39,7 +42,7 @@ Usalo para peticiones de imagen o grafica:
 
 ### ui_agent
 Usalo cuando el usuario quiera controlar la interfaz:
-- Abrir Panel, Indicadores, Tendencias, Priorizacion, Geovisor o Coropleticos
+- Abrir Panel, Indicadores, Tendencias, Priorizacion, Geovisor, Coropleticos o Demografia
 - Mostrar mapa del Valle del Cauca por casos, incidencia, riesgo o cambio
 - Configurar ano, variable, modo de mapa, incluir o excluir Cali
 

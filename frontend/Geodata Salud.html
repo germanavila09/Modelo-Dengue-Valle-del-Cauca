@@ -195,6 +195,14 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
 .section { display: none; flex: 1; overflow-y: auto; padding: 24px; }
 .section.active { display: flex; flex-direction: column; gap: 20px; }
 #s-geovisor.active { padding: 0; overflow: hidden; }
+#s-demografia.active {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+  height: calc(100vh - var(--header-h));
+  gap: 0;
+}
 
 .kpi-top-row { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 8px; }
 .kpi-spark { display: block; opacity: 0.7; }
@@ -299,6 +307,37 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
   box-shadow: 0 4px 24px #00000088;
 }
 .geo-tooltip.leaflet-tooltip::before { display: none; }
+
+/* ── Demografía ─────────────────────────────────────────────────────────── */
+#demo-banner {
+  display: flex; align-items: center; gap: 16px; justify-content: space-between;
+  padding: 10px 24px; background: var(--bg-card);
+  border-bottom: 1px solid var(--border); position: relative; z-index: 6;
+  flex-wrap: wrap;
+}
+#demo-banner::after {
+  content: ''; position: absolute; bottom: 0; left: 0; height: 1px;
+  background: linear-gradient(90deg, var(--accent)88, transparent 60%);
+  width: 100%;
+}
+.demo-select-container { display: flex; flex-direction: column; gap: 4px; min-width: 180px; }
+.demo-kpis-container { display: flex; gap: 10px; flex: 1; justify-content: flex-end; align-items: center; flex-wrap: wrap; }
+.demo-kpi-item {
+  background: var(--bg-card2); border: 1px solid var(--border2);
+  border-left: 3px solid var(--kpi-color, var(--accent));
+  border-radius: var(--r-sm); padding: 6px 12px; min-width: 135px;
+  display: flex; flex-direction: column; justify-content: center;
+}
+.demo-kpi-val { font-family: var(--mono); font-size: 20px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.demo-kpi-lbl { font-size: 10px; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.8px; margin-top: 3px; }
+
+#demo-body-wrap { display: flex; flex: 1; height: calc(100vh - var(--header-h) - 75px); width: 100%; }
+#demo-map { flex: 1; position: relative; }
+#demo-sidebar {
+  width: 320px; min-width: 320px; background: var(--bg-card);
+  border-left: 1px solid var(--border); padding: 18px;
+  display: flex; flex-direction: column; gap: 16px; overflow-y: auto; z-index: 5;
+}
 
 /* ── Coropléticos ───────────────────────────────────────────────────────── */
 #s-coropletico.active { padding: 0; overflow: hidden; }
@@ -581,6 +620,9 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       <div class="nav-item" data-section="priorizacion">
         <span class="nav-icon">◈</span> <span data-i18n="priorizacion">Priorización</span>
       </div>
+      <div class="nav-item" data-section="demografia">
+        <span class="nav-icon">👥</span> <span data-i18n="demografia">Demografía</span>
+      </div>
       <div class="nav-item" data-section="aede">
         <span class="nav-icon">◎</span> <span>AEDE</span>
       </div>
@@ -828,6 +870,70 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
           </div>
         </div>
         <div id="choro-map"></div>
+      </div>
+    </section>
+
+    <!-- ── 6b. DEMOGRAFÍA ─────────────────────────────────────────────────── -->
+    <section id="s-demografia" class="section" style="padding: 0; overflow: hidden;">
+      <div id="demo-banner">
+        <div class="demo-select-container">
+          <div class="map-ctrl-label" data-i18n="seleccionar_mun">Seleccionar municipio</div>
+          <select id="demo-mun-select" class="header-select" style="width: 100%; margin-top: 4px;"></select>
+        </div>
+        <div class="demo-select-container" style="min-width: 190px;">
+          <div class="map-ctrl-label">Filtrar por Ciclo de Vida</div>
+          <select id="demo-cycle-select" class="header-select" style="width: 100%; margin-top: 4px;">
+            <option value="ALL">Todos los ciclos</option>
+            <option value="Primera infancia">Primera infancia (0-5 años)</option>
+            <option value="Infancia">Infancia (6-11 años)</option>
+            <option value="Adolescencia">Adolescencia (12-17 años)</option>
+            <option value="Juventud">Juventud (18-28 años)</option>
+            <option value="Adultez">Adultez (29-59 años)</option>
+            <option value="Vejez">Vejez (60+ años)</option>
+          </select>
+        </div>
+        <div class="demo-kpis-container">
+          <div class="demo-kpi-item" style="--kpi-color: var(--accent);">
+            <div class="demo-kpi-val" id="demo-kpi-total">—</div>
+            <div class="demo-kpi-lbl" data-i18n="poblacion_total">Población Total</div>
+          </div>
+          <div class="demo-kpi-item" style="--kpi-color: #3b82f6;">
+            <div class="demo-kpi-val" id="demo-kpi-pct-masc">—</div>
+            <div class="demo-kpi-lbl">% Hombres</div>
+          </div>
+          <div class="demo-kpi-item" style="--kpi-color: #ec4899;">
+            <div class="demo-kpi-val" id="demo-kpi-pct-fem">—</div>
+            <div class="demo-kpi-lbl">% Mujeres</div>
+          </div>
+          <div class="demo-kpi-item" style="--kpi-color: var(--accent-3);">
+            <div class="demo-kpi-val" id="demo-kpi-masc">—</div>
+            <div class="demo-kpi-lbl">Hombres</div>
+          </div>
+          <div class="demo-kpi-item" style="--kpi-color: var(--accent-2);">
+            <div class="demo-kpi-val" id="demo-kpi-fem">—</div>
+            <div class="demo-kpi-lbl">Mujeres</div>
+          </div>
+        </div>
+      </div>
+      
+      <div id="demo-body-wrap">
+        <div id="demo-map"></div>
+        <div id="demo-sidebar">
+          <div class="chart-card" style="padding: 12px 14px;">
+            <div class="chart-card-title" style="font-size: 12px; margin-bottom: 8px;">Pirámide Poblacional</div>
+            <div class="chart-wrap" style="height: 240px;"><canvas id="demo-chart-pyramid"></canvas></div>
+          </div>
+
+          <div class="chart-card" style="padding: 12px 14px;">
+            <div class="chart-card-title" style="font-size: 12px; margin-bottom: 8px;">Ciclos de Vida</div>
+            <div class="chart-wrap" style="height: 180px;"><canvas id="demo-chart-cycles"></canvas></div>
+          </div>
+          
+          <div style="margin-top:auto">
+            <div class="map-ctrl-label">Fuente</div>
+            <div style="font-size:11px;font-family:var(--mono);color:var(--accent-3)">⬡ Proyecciones DANE (PostgreSQL)</div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1231,6 +1337,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
 <!-- <script src="geodata-records.js"></script> -->
 <!-- <script src="geodata-muni.js"></script>    -->
 
+<script src="demografia-data.js"></script>
 <script src="geodata-data.js?v=4"></script>
 <script src="geodata-app.js?v=4"></script>
 <script src="geodata-forecasting.js?v=1"></script>

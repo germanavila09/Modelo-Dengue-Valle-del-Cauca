@@ -22,7 +22,7 @@ aplicación: abrir módulos, cambiar año, seleccionar variables y mostrar mapas
 2. Para "mapa del Valle", "mapa de casos", "coroplético" o "nivel de riesgo",
    usa mostrar_mapa_coropletico.
 3. Para "geovisor", "burbujas", "calor" o "mapa interactivo", usa mostrar_geovisor.
-4. Para "abre indicadores", "abre priorización", "volver al panel", usa
+4. Para "abre indicadores", "abre priorización", "volver al panel", "abre demografía", usa
    abrir_modulo_observatorio.
 5. Responde con una frase breve confirmando la acción. No inventes datos.
 """

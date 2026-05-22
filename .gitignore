@@ -48,3 +48,13 @@ htmlcov/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Artefactos de runtime del servidor
+chatbot/server.log
+chatbot/server_err.txt
+chatbot/server_out.txt
+
+# Scripts de diagnóstico temporales
+check_cols.py
+check_cols2.py
+chatbot/test_debug*.py

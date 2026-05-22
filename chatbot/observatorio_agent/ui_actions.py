@@ -16,6 +16,7 @@ SECTION_LABELS = {
     "priorizacion": "priorizacion",
     "geovisor": "geovisor",
     "coropletico": "coropleticos",
+    "demografia": "demografía",
 }
 
 VARIABLES = {

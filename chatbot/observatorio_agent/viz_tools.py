@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import io
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any, Callable
 
@@ -63,7 +64,33 @@ def _err(message: str) -> dict:
 
 
 def _norm_municipio(nombre: str) -> str:
-    return nombre.strip().upper()
+    # 1. Decomponer acentos (NFKD) y remover marcas combinadas
+    normalized = unicodedata.normalize("NFKD", nombre.lower())
+    clean_name = "".join(ch for ch in normalized if not unicodedata.combining(ch)).upper().strip()
+    
+    # 2. Mapeo de alias comunes
+    aliases = {
+        "BUGA": "GUADALAJARA DE BUGA",
+        "SAN SANTIAGO DE CALI": "CALI",
+        "SANTIAGO DE CALI": "CALI",
+        "CALIMA EL DARIEN": "CALIMA",
+        "CALIMA DARIEN": "CALIMA",
+    }
+    canonical = aliases.get(clean_name, clean_name)
+    
+    # 3. Mapeo específico de los 9 municipios con caracteres corruptos (?) en la tabla de dengue de PostgreSQL
+    dengue_corrupt_mapping = {
+        "ALCALA": "ALCAL?",
+        "ANDALUCIA": "ANDALUC?A",
+        "BOLIVAR": "BOL?VAR",
+        "EL AGUILA": "EL ?GUILA",
+        "GUACARI": "GUACAR?",
+        "JAMUNDI": "JAMUND?",
+        "LA UNION": "LA UNI?N",
+        "RIOFRIO": "RIOFR?O",
+        "TULUA": "TULU?",
+    }
+    return dengue_corrupt_mapping.get(canonical, canonical)
 
 
 def _norm_municipios(municipios: list[str] | str) -> list[str]:
@@ -253,39 +280,41 @@ async def grafica_top_municipios_todos_anios(
 
         filename = f"top{n}_{metrica}_historico.png"
 
+        # Calcular top_munis fuera de _make para guardarlo en el state de sesión
+        gdf = cargar_datos()
+        col_y = "conteo_dengue" if metrica == "casos" else "incidencia_dengue"
+        etiqueta_y = "Casos confirmados" if metrica == "casos" else "Incidencia x100k hab."
+        resumen_col = "total_casos" if metrica == "casos" else "incidencia_promedio_x100k"
+
+        if metrica == "casos":
+            ranking_df = (
+                gdf.groupby("MPIO_CNMBR", as_index=False)[col_y]
+                .sum()
+                .rename(columns={col_y: resumen_col})
+                .sort_values(resumen_col, ascending=False)
+                .head(n)
+            )
+        else:
+            ranking_df = (
+                gdf.dropna(subset=[col_y])
+                .groupby("MPIO_CNMBR", as_index=False)[col_y]
+                .mean()
+                .rename(columns={col_y: resumen_col})
+                .sort_values(resumen_col, ascending=False)
+                .head(n)
+            )
+
+        top_munis = ranking_df["MPIO_CNMBR"].tolist()
+
         def _make():
-            gdf = cargar_datos()
-            col_y = "conteo_dengue" if metrica == "casos" else "incidencia_dengue"
-            etiqueta_y = "Casos confirmados" if metrica == "casos" else "Incidencia x100k hab."
-            resumen_col = "total_casos" if metrica == "casos" else "incidencia_promedio_x100k"
-
-            if metrica == "casos":
-                ranking_df = (
-                    gdf.groupby("MPIO_CNMBR", as_index=False)[col_y]
-                    .sum()
-                    .rename(columns={col_y: resumen_col})
-                    .sort_values(resumen_col, ascending=False)
-                    .head(n)
-                )
-            else:
-                ranking_df = (
-                    gdf.dropna(subset=[col_y])
-                    .groupby("MPIO_CNMBR", as_index=False)[col_y]
-                    .mean()
-                    .rename(columns={col_y: resumen_col})
-                    .sort_values(resumen_col, ascending=False)
-                    .head(n)
-                )
-
-            top_munis = ranking_df["MPIO_CNMBR"].tolist()
             df = (
                 gdf[gdf["MPIO_CNMBR"].isin(top_munis)]
-                .sort_values(["MPIO_CNMBR", "año"])[["MPIO_CNMBR", "año", col_y]]
+                .sort_values(["MPIO_CNMBR", "anio"])[["MPIO_CNMBR", "anio", col_y]]
                 .copy()
             )
             g = sns.relplot(
                 data=df,
-                x="año",
+                x="anio",
                 y=col_y,
                 hue="MPIO_CNMBR",
                 kind="line",
@@ -301,6 +330,12 @@ async def grafica_top_municipios_todos_anios(
             return g
 
         meta = await _get_or_create_artifact(tool_context, filename, _make)
+        tool_context.state["last_series_municipios"] = top_munis
+        tool_context.state["last_metrica"] = metrica
+        tool_context.state["last_visual"] = "series"
+        if top_munis:
+            tool_context.state["last_municipio"] = top_munis[-1]
+
         return _ok(
             grafica="top_municipios_todos_anios",
             n=n,
@@ -333,7 +368,7 @@ async def grafica_serie_municipio(
             gdf = cargar_datos()
             df = (
                 gdf[gdf["MPIO_CNMBR"] == muni]
-                .sort_values("año")[["año", "conteo_dengue", "incidencia_dengue"]]
+                .sort_values("anio")[["anio", "conteo_dengue", "incidencia_dengue"]]
                 .copy()
             )
             if df.empty:
@@ -343,7 +378,7 @@ async def grafica_serie_municipio(
                 )
             g = sns.relplot(
                 data=df,
-                x="año",
+                x="anio",
                 y="conteo_dengue",
                 kind="line",
                 marker="o",
@@ -356,6 +391,9 @@ async def grafica_serie_municipio(
 
         meta = await _get_or_create_artifact(tool_context, filename, _make)
         tool_context.state["last_municipio"] = muni
+        tool_context.state["last_series_municipios"] = [muni]
+        tool_context.state["last_metrica"] = "casos"
+        tool_context.state["last_visual"] = "series"
 
         return _ok(
             grafica="serie_municipio",
@@ -409,7 +447,7 @@ async def grafica_series_municipios(
 
             df = (
                 gdf[gdf["MPIO_CNMBR"].isin(graficados)]
-                .sort_values(["MPIO_CNMBR", "año"])[["MPIO_CNMBR", "año", col_y]]
+                .sort_values(["MPIO_CNMBR", "anio"])[["MPIO_CNMBR", "anio", col_y]]
                 .copy()
             )
             encontrados = df["MPIO_CNMBR"].dropna().unique().tolist()
@@ -420,7 +458,7 @@ async def grafica_series_municipios(
                 )
             g = sns.relplot(
                 data=df,
-                x="año",
+                x="anio",
                 y=col_y,
                 hue="MPIO_CNMBR",
                 kind="line",
@@ -437,6 +475,9 @@ async def grafica_series_municipios(
 
         meta = await _get_or_create_artifact(tool_context, filename, _make)
 
+        tool_context.state["last_series_municipios"] = graficados
+        tool_context.state["last_metrica"] = metrica
+        tool_context.state["last_visual"] = "series"
         if graficados:
             tool_context.state["last_municipio"] = graficados[-1]
 
@@ -497,7 +538,7 @@ async def grafica_facet_municipios(
 
             df = (
                 gdf[gdf["MPIO_CNMBR"].isin(graficados)]
-                .sort_values(["MPIO_CNMBR", "año"])[["MPIO_CNMBR", "año", col_y]]
+                .sort_values(["MPIO_CNMBR", "anio"])[["MPIO_CNMBR", "anio", col_y]]
                 .copy()
             )
             if df.empty:
@@ -508,7 +549,7 @@ async def grafica_facet_municipios(
             col_wrap = min(3, len(graficados))
             g = sns.relplot(
                 data=df,
-                x="año",
+                x="anio",
                 y=col_y,
                 col="MPIO_CNMBR",
                 kind="line",
@@ -529,6 +570,9 @@ async def grafica_facet_municipios(
 
         meta = await _get_or_create_artifact(tool_context, filename, _make)
 
+        tool_context.state["last_series_municipios"] = graficados
+        tool_context.state["last_metrica"] = metrica
+        tool_context.state["last_visual"] = "series"
         if graficados:
             tool_context.state["last_municipio"] = graficados[-1]
 

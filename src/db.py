@@ -37,13 +37,13 @@ def cargar_datos(engine=None):
     SELECT
         "MPIO_CCDGO",
         "MPIO_CNMBR",
-        "año",
-        "población",
+        anio,
+        poblacion,
         conteo_dengue,
         incidencia_dengue,
         geom
     FROM {tabla}
-    ORDER BY "año", "MPIO_CNMBR";
+    ORDER BY anio, "MPIO_CNMBR";
     """
 
     return gpd.read_postgis(query, engine, geom_col="geom")

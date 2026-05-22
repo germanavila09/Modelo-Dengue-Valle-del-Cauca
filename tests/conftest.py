@@ -37,6 +37,17 @@ def mock_env_vars(monkeypatch):
     }
     for key, value in test_env.items():
         monkeypatch.setenv(key, value)
+        
+    # Reload config and db modules if they were already imported to ensure they pick up mocked env vars
+    import sys
+    import importlib
+    for mod_name in ["src.config", "src.db"]:
+        if mod_name in sys.modules:
+            try:
+                importlib.reload(sys.modules[mod_name])
+            except Exception:
+                pass
+                
     return test_env
 
 

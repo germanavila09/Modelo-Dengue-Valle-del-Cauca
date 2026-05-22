@@ -17,6 +17,7 @@ del repo a ``sys.path`` la primera vez que se importa este modulo.
 from __future__ import annotations
 
 import sys
+import unicodedata
 from pathlib import Path
 from typing import Any
 
@@ -54,7 +55,33 @@ def _err(message: str) -> dict:
 
 
 def _norm_municipio(nombre: str) -> str:
-    return nombre.strip().upper()
+    # 1. Decomponer acentos (NFKD) y remover marcas combinadas
+    normalized = unicodedata.normalize("NFKD", nombre.lower())
+    clean_name = "".join(ch for ch in normalized if not unicodedata.combining(ch)).upper().strip()
+    
+    # 2. Mapeo de alias comunes
+    aliases = {
+        "BUGA": "GUADALAJARA DE BUGA",
+        "SAN SANTIAGO DE CALI": "CALI",
+        "SANTIAGO DE CALI": "CALI",
+        "CALIMA EL DARIEN": "CALIMA",
+        "CALIMA DARIEN": "CALIMA",
+    }
+    canonical = aliases.get(clean_name, clean_name)
+    
+    # 3. Mapeo específico de los 9 municipios con caracteres corruptos (?) en la tabla de dengue de PostgreSQL
+    dengue_corrupt_mapping = {
+        "ALCALA": "ALCAL?",
+        "ANDALUCIA": "ANDALUC?A",
+        "BOLIVAR": "BOL?VAR",
+        "EL AGUILA": "EL ?GUILA",
+        "GUACARI": "GUACAR?",
+        "JAMUNDI": "JAMUND?",
+        "LA UNION": "LA UNI?N",
+        "RIOFRIO": "RIOFR?O",
+        "TULUA": "TULU?",
+    }
+    return dengue_corrupt_mapping.get(canonical, canonical)
 
 
 def _remember(tool_context: ToolContext, municipio: str | None = None, anio: int | None = None) -> None:
@@ -101,10 +128,10 @@ def casos_por_municipio_anio(municipio: str, anio: int, tool_context: ToolContex
         muni = _norm_municipio(municipio)
         engine = crear_engine()
         query = text(
-            f'SELECT "MPIO_CNMBR" AS municipio, "año" AS anio, '
-            f'       "población" AS poblacion, conteo_dengue, incidencia_dengue '
+            f'SELECT "MPIO_CNMBR" AS municipio, anio, '
+            f'       poblacion, conteo_dengue, incidencia_dengue '
             f'FROM "{SCHEMA}"."{TABLE}" '
-            f'WHERE "MPIO_CNMBR" = :muni AND "año" = :anio;'
+            f'WHERE "MPIO_CNMBR" = :muni AND anio = :anio;'
         )
         df = pd.read_sql(query, engine, params={"muni": muni, "anio": int(anio)})
         if df.empty:
@@ -151,7 +178,7 @@ def top_municipios(anio: int, tool_context: ToolContext, n: int = 5, metrica: st
             f'       conteo_dengue AS casos, '
             f'       incidencia_dengue AS incidencia '
             f'FROM "{SCHEMA}"."{TABLE}" '
-            f'WHERE "año" = :anio AND {col} IS NOT NULL '
+            f'WHERE anio = :anio AND {col} IS NOT NULL '
             f'ORDER BY {col} DESC '
             f'LIMIT :n;'
         )
@@ -184,11 +211,11 @@ def serie_temporal_municipio(municipio: str, tool_context: ToolContext) -> dict:
         muni = _norm_municipio(municipio)
         engine = crear_engine()
         query = text(
-            f'SELECT "año" AS anio, conteo_dengue AS casos, '
+            f'SELECT anio, conteo_dengue AS casos, '
             f'       incidencia_dengue AS incidencia '
             f'FROM "{SCHEMA}"."{TABLE}" '
             f'WHERE "MPIO_CNMBR" = :muni '
-            f'ORDER BY "año";'
+            f'ORDER BY anio;'
         )
         df = pd.read_sql(query, engine, params={"muni": muni})
         if df.empty:
@@ -224,11 +251,11 @@ def resumen_anio(anio: int, tool_context: ToolContext) -> dict:
         engine = crear_engine()
         query = text(
             f'SELECT "MPIO_CNMBR" AS municipio, '
-            f'       "población" AS poblacion, '
+            f'       poblacion, '
             f'       conteo_dengue AS casos, '
             f'       incidencia_dengue AS incidencia '
             f'FROM "{SCHEMA}"."{TABLE}" '
-            f'WHERE "año" = :anio;'
+            f'WHERE anio = :anio;'
         )
         df = pd.read_sql(query, engine, params={"anio": int(anio)})
         if df.empty:
@@ -306,3 +333,242 @@ def establecer_preferencia(metrica_default: str, tool_context: ToolContext) -> d
         metrica_preferida=metrica_default,
         mensaje=f"Listo, ahora reportare por defecto en {metrica_default}.",
     )
+
+
+# ---------------------------------------------------------------------------
+# Tools nuevas: demografia (PostgreSQL terrarIA DB)
+# ---------------------------------------------------------------------------
+
+def _normalize_muni_for_demografia(nombre: str) -> str:
+    normalized = unicodedata.normalize("NFKD", nombre.lower())
+    muni_upper = "".join(ch for ch in normalized if not unicodedata.combining(ch)).upper().strip()
+    
+    # Mapeo de alias comunes a nombres estándar en demografía (dim_municipio.nombre_normalizado)
+    aliases = {
+        "BUGA": "GUADALAJARA DE BUGA",
+        "SAN SANTIAGO DE CALI": "CALI",
+        "SANTIAGO DE CALI": "CALI",
+        "CALIMA EL DARIEN": "CALIMA",
+        "CALIMA DARIEN": "CALIMA",
+    }
+    return aliases.get(muni_upper, muni_upper)
+
+
+def consultar_poblacion_municipio(municipio: str, tool_context: ToolContext) -> dict:
+    """Consulta la poblacion total y por genero de un municipio o del departamento entero.
+
+    Args:
+        municipio: Nombre del municipio (ej. "Cali", "Alcalá", "Zarzal") o "Valle"/"Valle del Cauca" para el total.
+    """
+    try:
+        muni_norm = _normalize_muni_for_demografia(municipio)
+        is_valle = muni_norm in ("VALLE", "VALLE DEL CAUCA")
+        
+        engine = crear_engine()
+        if is_valle:
+            query = text("""
+                SELECT 
+                    'Valle del Cauca (Total)' AS municipio,
+                    'VALLE' AS codigo_dane,
+                    anio_referencia,
+                    SUM(poblacion_total) AS poblacion_total,
+                    SUM(poblacion_masculina) AS poblacion_masculina,
+                    SUM(poblacion_femenina) AS poblacion_femenina,
+                    ROUND((100.0 * SUM(poblacion_femenina)) / SUM(poblacion_total), 1) AS pct_femenino
+                FROM demografia.v_poblacion_municipio_total
+                WHERE anio_referencia = 2024
+                GROUP BY anio_referencia;
+            """)
+            df = pd.read_sql(query, engine)
+        else:
+            query = text("""
+                SELECT v.municipio, v.codigo_dane, v.anio_referencia, v.poblacion_total, v.poblacion_masculina, v.poblacion_femenina, v.pct_femenino
+                FROM demografia.v_poblacion_municipio_total v
+                JOIN demografia.dim_municipio m ON v.codigo_dane = m.codigo_dane
+                WHERE m.nombre_normalizado = :muni_norm AND v.anio_referencia = 2024;
+            """)
+            df = pd.read_sql(query, engine, params={"muni_norm": muni_norm})
+
+        if df.empty:
+            return _err(f"No se encontro informacion demografica para el municipio: {municipio}")
+        
+        row = df.iloc[0].to_dict()
+        _remember(tool_context, municipio=muni_norm)
+        
+        pct_fem = float(row["pct_femenino"])
+        pct_masc = round(100.0 - pct_fem, 1)
+        
+        return _ok(
+            municipio=row["municipio"],
+            codigo_dane=row["codigo_dane"],
+            anio_referencia=int(row["anio_referencia"]),
+            poblacion_total=int(row["poblacion_total"]),
+            poblacion_masculina=int(row["poblacion_masculina"]),
+            poblacion_femenina=int(row["poblacion_femenina"]),
+            pct_femenino=pct_fem,
+            pct_masculino=pct_masc,
+        )
+    except Exception as exc:
+        return _err(f"Error consultando poblacion: {exc}")
+
+
+def consultar_poblacion_ciclo_vida(municipio: str, tool_context: ToolContext) -> dict:
+    """Consulta la distribucion de poblacion por ciclo de vida y genero para un municipio o departamento.
+
+    Args:
+        municipio: Nombre del municipio (ej. "Cali", "Palmira") o "Valle"/"Valle del Cauca" para el total.
+    """
+    try:
+        muni_norm = _normalize_muni_for_demografia(municipio)
+        is_valle = muni_norm in ("VALLE", "VALLE DEL CAUCA")
+        
+        engine = crear_engine()
+        if is_valle:
+            query = text("""
+                SELECT 
+                    c.nombre AS ciclo_nombre,
+                    pc.sexo,
+                    SUM(pc.cantidad) AS cantidad
+                FROM demografia.pob_ciclo_vida pc
+                JOIN demografia.dim_ciclo_vida c ON pc.id_ciclo = c.id_ciclo
+                WHERE pc.anio_referencia = 2024
+                GROUP BY c.nombre, c.id_ciclo, pc.sexo
+                ORDER BY c.id_ciclo, pc.sexo;
+            """)
+            df = pd.read_sql(query, engine)
+        else:
+            query = text("""
+                SELECT 
+                    c.nombre AS ciclo_nombre,
+                    pc.sexo,
+                    SUM(pc.cantidad) AS cantidad,
+                    m.nombre AS municipio_nombre
+                FROM demografia.pob_ciclo_vida pc
+                JOIN demografia.dim_municipio m ON pc.id_municipio = m.id_municipio
+                JOIN demografia.dim_ciclo_vida c ON pc.id_ciclo = c.id_ciclo
+                WHERE m.nombre_normalizado = :muni_norm AND pc.anio_referencia = 2024
+                GROUP BY c.nombre, c.id_ciclo, pc.sexo, m.nombre
+                ORDER BY c.id_ciclo, pc.sexo;
+            """)
+            df = pd.read_sql(query, engine, params={"muni_norm": muni_norm})
+
+        if df.empty:
+            return _err(f"No se encontro informacion demografica por ciclo de vida para el municipio: {municipio}")
+        
+        # Obtener el nombre del municipio de la consulta
+        df_muni_name = "Valle del Cauca (Total)" if is_valle else df.iloc[0]["municipio_nombre"]
+        
+        # Agrupar por ciclo de vida
+        ciclos = {}
+        for _, r in df.iterrows():
+            c_name = r["ciclo_nombre"]
+            sex = r["sexo"]
+            qty = int(r["cantidad"])
+            if c_name not in ciclos:
+                ciclos[c_name] = {"total": 0, "masculino": 0, "femenino": 0}
+            ciclos[c_name]["total"] += qty
+            if sex == "M":
+                ciclos[c_name]["masculino"] += qty
+            else:
+                ciclos[c_name]["femenino"] += qty
+
+        ciclos_list = []
+        for c_name, vals in ciclos.items():
+            tot = vals["total"]
+            m_qty = vals["masculino"]
+            f_qty = vals["femenino"]
+            pct_m = round((m_qty / tot * 100), 1) if tot > 0 else 0.0
+            pct_f = round((f_qty / tot * 100), 1) if tot > 0 else 0.0
+            ciclos_list.append({
+                "ciclo": c_name,
+                "total": tot,
+                "hombres": m_qty,
+                "mujeres": f_qty,
+                "pct_hombres": pct_m,
+                "pct_mujeres": pct_f
+            })
+
+        _remember(tool_context, municipio=muni_norm)
+        return _ok(
+            municipio=df_muni_name,
+            ciclos=ciclos_list
+        )
+    except Exception as exc:
+        return _err(f"Error consultando ciclos de vida: {exc}")
+
+
+def consultar_piramide_poblacional(municipio: str, tool_context: ToolContext) -> dict:
+    """Consulta la distribución de población en grupos quinquenales (pirámide poblacional) por género.
+
+    Args:
+        municipio: Nombre del municipio (ej. "Cali", "Buga") o "Valle"/"Valle del Cauca" para el total.
+    """
+    try:
+        muni_norm = _normalize_muni_for_demografia(municipio)
+        is_valle = muni_norm in ("VALLE", "VALLE DEL CAUCA")
+        
+        engine = crear_engine()
+        if is_valle:
+            query = text("""
+                SELECT 
+                    v.grupo_quinquenal,
+                    v.sexo,
+                    SUM(v.cantidad) AS cantidad,
+                    v.orden
+                FROM demografia.v_piramide_poblacional_municipio v
+                WHERE v.anio_referencia = 2024
+                GROUP BY v.grupo_quinquenal, v.sexo, v.orden
+                ORDER BY v.orden, v.sexo;
+            """)
+            df = pd.read_sql(query, engine)
+        else:
+            query = text("""
+                SELECT 
+                    v.grupo_quinquenal,
+                    v.sexo,
+                    v.cantidad,
+                    v.orden,
+                    m.nombre AS municipio_nombre
+                FROM demografia.v_piramide_poblacional_municipio v
+                JOIN demografia.dim_municipio m ON v.codigo_dane = m.codigo_dane
+                WHERE m.nombre_normalizado = :muni_norm AND v.anio_referencia = 2024
+                ORDER BY v.orden, v.sexo;
+            """)
+            df = pd.read_sql(query, engine, params={"muni_norm": muni_norm})
+
+        if df.empty:
+            return _err(f"No se encontro piramide poblacional para el municipio: {municipio}")
+        
+        df_muni_name = "Valle del Cauca (Total)" if is_valle else df.iloc[0]["municipio_nombre"]
+        
+        piramide = {}
+        for _, r in df.iterrows():
+            g = r["grupo_quinquenal"]
+            sex = r["sexo"]
+            qty = int(r["cantidad"])
+            if g not in piramide:
+                piramide[g] = {"total": 0, "hombres": 0, "mujeres": 0, "orden": int(r["orden"])}
+            piramide[g]["total"] += qty
+            if sex == "M":
+                piramide[g]["hombres"] += qty
+            else:
+                piramide[g]["mujeres"] += qty
+
+        sorted_piramide = sorted(
+            [{"grupo": g, **vals} for g, vals in piramide.items()],
+            key=lambda x: x["orden"]
+        )
+        
+        for item in sorted_piramide:
+            del item["orden"]
+            tot = item["total"]
+            item["pct_hombres"] = round((item["hombres"] / tot * 100), 1) if tot > 0 else 0.0
+            item["pct_mujeres"] = round((item["mujeres"] / tot * 100), 1) if tot > 0 else 0.0
+
+        _remember(tool_context, municipio=muni_norm)
+        return _ok(
+            municipio=df_muni_name,
+            piramide=sorted_piramide
+        )
+    except Exception as exc:
+        return _err(f"Error consultando piramide: {exc}")

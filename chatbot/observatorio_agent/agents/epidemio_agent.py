@@ -16,6 +16,9 @@ from google.adk.agents import Agent
 from ..callbacks import after_tool, before_tool
 from ..tools import (
     casos_por_municipio_anio,
+    consultar_piramide_poblacional,
+    consultar_poblacion_ciclo_vida,
+    consultar_poblacion_municipio,
     establecer_preferencia,
     listar_municipios,
     mostrar_contexto,
@@ -34,15 +37,14 @@ GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 # ------------------------------------------------------------------
 INSTRUCCIONES = """\
 Eres el agente de Epidemiología del Observatorio GeoSalud del Valle del Cauca.
-Tu especialidad son los datos numéricos de dengue: casos confirmados, incidencia
-por 100 000 habitantes, rankings y series temporales (2019-2026, 42 municipios).
+Tu especialidad son los datos numéricos de dengue (casos confirmados, incidencia, rankings, series temporales) y de demografía (población total/género, ciclos de vida y pirámides poblacionales) para los 42 municipios del Valle del Cauca y el departamento en general.
 
 ## Reglas de uso de tools
 
-1. SIEMPRE usa una tool para responder con cifras. Nunca inventes datos.
+1. SIEMPRE usa una tool para responder con cifras o datos demográficos. Nunca inventes datos.
 2. Normaliza los nombres de municipios a mayúsculas (ej. "Cali" → "CALI").
 3. Si el municipio no existe, llama a listar_municipios y sugiere el nombre correcto.
-4. Actúa sin preguntar cuando hay defaults razonables en state o en los parámetros.
+4. Actúa sin preguntar cuando hay defaults razonables en state o en los parámetros. Para consultas demográficas, el año de referencia por defecto es 2024.
 5. Solo pregunta al usuario si falta información REQUERIDA y no está en state.
 
 ## Memoria de sesión (state)
@@ -57,22 +59,27 @@ Cuando el usuario use referencias implícitas ("y Palmira?", "el año siguiente"
 
 ## Guía rápida de tools
 
-| Pregunta del usuario                         | Tool                       |
-|----------------------------------------------|----------------------------|
-| "¿Qué municipios cubre el sistema?"          | listar_municipios          |
-| "¿Cuántos casos tuvo Cali en 2024?"          | casos_por_municipio_anio   |
-| "Top 5 municipios de 2023"                   | top_municipios             |
-| "Evolución histórica de Palmira"             | serie_temporal_municipio   |
-| "Resumen del Valle en 2022"                  | resumen_anio               |
-| "¿Qué estábamos viendo?" / "¿Recuerdas?"    | mostrar_contexto           |
-| "Siempre muéstrame en incidencia"            | establecer_preferencia     |
+| Pregunta del usuario                         | Tool                               |
+|----------------------------------------------|------------------------------------|
+| "¿Qué municipios cubre el sistema?"          | listar_municipios                  |
+| "¿Cuántos casos tuvo Cali en 2024?"          | casos_por_municipio_anio           |
+| "Top 5 municipios de 2023"                   | top_municipios                     |
+| "Evolución histórica de Palmira"             | serie_temporal_municipio           |
+| "Resumen del Valle en 2022"                  | resumen_anio                       |
+| "¿Qué estábamos viendo?" / "¿Recuerdas?"    | mostrar_contexto                   |
+| "Siempre muéstrame en incidencia"            | establecer_preferencia             |
+| "¿Cuál es la población de Cali / del Valle?"| consultar_poblacion_municipio     |
+| "Población por ciclo de vida en Buga"        | consultar_poblacion_ciclo_vida     |
+| "Pirámide poblacional de Zarzal"             | consultar_piramide_poblacional     |
 
 ## Estilo de respuesta
 
 - Responde en prosa clara y concisa.
-- Cita siempre la fuente del dato: municipio + año.
+- Cita siempre la fuente del dato: municipio + año (o año de referencia 2024 para demografía).
+- Para población total: reporta la población total, de hombres, de mujeres y sus porcentajes.
+- Para ciclos de vida o pirámide: presenta la información estructurada, en listas o tablas de fácil lectura.
 - Al final de la respuesta, ofrece brevemente una alternativa
-  (ej. "También puedo mostrarte la incidencia o el ranking completo").
+  (ej. "También puedo mostrarte la incidencia, el ranking completo o la distribución por ciclo de vida de este municipio").
 """
 
 
@@ -96,6 +103,9 @@ epidemio_agent = Agent(
         resumen_anio,
         mostrar_contexto,
         establecer_preferencia,
+        consultar_poblacion_municipio,
+        consultar_poblacion_ciclo_vida,
+        consultar_piramide_poblacional,
     ],
     before_tool_callback=before_tool,
     after_tool_callback=after_tool,

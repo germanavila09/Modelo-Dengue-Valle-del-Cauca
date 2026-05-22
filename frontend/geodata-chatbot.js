@@ -25,12 +25,12 @@ const CHAT_SESSION_ID = (() => {
 
 // Sugerencias de preguntas rápidas
 const SUGGESTED_QUESTIONS = [
+  'Abre el módulo de demografía',
+  '¿Cuál es la población de Cali?',
+  'Población por ciclo de vida en Palmira',
   'Top 5 municipios con más casos en 2024',
-  'Serie de tiempo de los municipios con mayor número de casos',
   'Mapa de casos del Valle del Cauca en 2024',
-  'Top 5 municipios por incidencia en 2024',
   'Mapa de nivel de riesgo',
-  'Ahora muéstrame sin Cali',
 ];
 
 // ── Estado del chat ───────────────────────────────────────────────────────────

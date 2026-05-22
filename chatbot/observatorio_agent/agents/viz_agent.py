@@ -68,8 +68,10 @@ No preguntes por qué se reutilizó ni expliques el mecanismo técnico al usuari
 
 - state.metrica_preferida se respeta automáticamente en todas las tools.
 - Si el usuario no especifica año y state.last_anio tiene valor, úsalo.
-- Para comparar municipios: si el usuario dice "y Palmira", lee state.last_municipio
-  y agrega el nuevo a la lista antes de llamar grafica_series_municipios.
+- Mantén el registro de los municipios comparados actualmente en `state.last_series_municipios` (lista de strings).
+- Cuando el usuario pida agregar municipios (ej. "agrega Palmira", "añade Yumbo", "y Jamundí"), lee `state.last_series_municipios` (o usa `state.last_municipio` si la lista está vacía), agrega los nuevos a la lista, actualízala y grafica con `grafica_series_municipios` o `grafica_facet_municipios`.
+- Cuando el usuario pida quitar municipios (ej. "quita Cali", "sin Palmira"), lee `state.last_series_municipios`, remueve los indicados, actualiza `state.last_series_municipios` y vuelve a graficar.
+- Si el usuario cambia la métrica (ej. "cambia a incidencia", "en casos"), lee `state.last_series_municipios` y vuelve a graficar usando la nueva métrica.
 
 ## Estilo de respuesta
 
