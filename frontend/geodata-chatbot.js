@@ -8,8 +8,9 @@
 
 const CHATBOT_API = (() => {
   if (window.CHATBOT_API_URL) return window.CHATBOT_API_URL;
-  const host = window.location.hostname || 'localhost';
-  return `http://${host}:8080`;
+  return window.location.protocol.startsWith("http")
+    ? window.location.origin + "/api/geosalud"
+    : "http://localhost:8080";
 })();
 
 // Genera un session_id único por pestaña (persiste en sessionStorage)

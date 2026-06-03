@@ -565,6 +565,331 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
   animation: scanMap 4s linear infinite; pointer-events: none; z-index: 999;
 }
 @keyframes scanMap { 0%{top:-2px} 100%{top:100%} }
+
+/* ── Stacked charts layout (Tendencias) ────────────────────────────────── */
+.charts-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.charts-stack .chart-card {
+  width: 100%;
+}
+.charts-stack .chart-wrap {
+  height: 280px;
+}
+
+/* ── Segmented Control (Tendencias Controls) ────────────────────────────── */
+.segmented-control {
+  display: inline-flex;
+  background: var(--bg-card2);
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  padding: 2px;
+}
+.segmented-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-2);
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: calc(var(--r-sm) - 2px);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.segmented-btn:hover {
+  color: var(--text);
+}
+.segmented-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+
+/* ── Módulo de Reporte ─────────────────────────────────────────────────── */
+.reporte-container {
+  display: flex;
+  justify-content: center;
+  padding: 10px 0 30px;
+}
+.reporte-sheet {
+  background: #ffffff;
+  color: #1e293b;
+  width: 100%;
+  max-width: 800px;
+  min-height: 1050px;
+  padding: 40px;
+  border-radius: var(--r-sm);
+  box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+  font-family: var(--font);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.reporte-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 20px;
+}
+.reporte-logo-area {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.reporte-header-text {
+  display: flex;
+  flex-direction: column;
+}
+.reporte-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.5px;
+}
+.reporte-subtitle {
+  font-size: 12px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.reporte-meta {
+  font-size: 11px;
+  color: #334155;
+  text-align: right;
+  line-height: 1.5;
+}
+.reporte-meta strong {
+  color: #0f172a;
+}
+.reporte-divider {
+  border: 0;
+  height: 1px;
+  background: #e2e8f0;
+  margin: 5px 0;
+}
+.reporte-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.rep-kpi-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  text-align: center;
+}
+.rep-kpi-val {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 700;
+  color: #1e3a8a;
+  line-height: 1.2;
+}
+.rep-kpi-lbl {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  margin-top: 4px;
+}
+.rep-kpi-sub {
+  font-size: 8px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+.reporte-narrative-box {
+  background: #f1f5f9;
+  border-left: 4px solid #3b82f6;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  padding: 16px 20px;
+}
+.reporte-sec-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.reporte-text {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #334155;
+  text-align: justify;
+}
+.reporte-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.reporte-chart-box {
+  border: 1px solid #e2e8f0;
+  border-radius: var(--r-sm);
+  padding: 14px;
+  background: #ffffff;
+}
+.reporte-chart-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 12px;
+  text-align: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 6px;
+}
+.reporte-canvas-wrap {
+  position: relative;
+  height: 200px;
+}
+.reporte-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
+}
+.reporte-signatures {
+  display: flex;
+  justify-content: space-around;
+  margin-top: 15px;
+}
+.signature-line {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 200px;
+}
+.signature-space {
+  width: 100%;
+  height: 35px;
+  border-bottom: 1px solid #94a3b8;
+  margin-bottom: 6px;
+}
+.signature-name {
+  font-size: 11px;
+  font-weight: 600;
+  color: #334155;
+}
+.signature-title {
+  font-size: 9px;
+  color: #64748b;
+}
+.reporte-notes {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 10px;
+  font-size: 9px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* ── Reglas de Impresión ────────────────────────────────────────────────── */
+@media print {
+  body, #app, #main, .section.active {
+    background: #ffffff !important;
+    color: #000000 !important;
+    overflow: visible !important;
+    height: auto !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  #sidebar, #header, .section-intro.no-print, .tendencias-controls, #reporte-print-btn {
+    display: none !important;
+  }
+  .reporte-container {
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+  .reporte-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100% !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  .rep-kpi-card {
+    background: #ffffff !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .reporte-narrative-box {
+    background: #f8fafc !important;
+    border-left: 4px solid #1e3a8a !important;
+  }
+  .reporte-chart-box {
+    border: 1px solid #cbd5e1 !important;
+  }
+  /* Evitar saltos de página a mitad de elementos clave */
+  .reporte-kpis, .reporte-narrative-box, .reporte-charts-grid, .reporte-footer {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+/* Reporte epidemiologico expandido */
+.reporte-container { display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 10px 0 34px; }
+.reporte-page { background: #fff; color: #111827; width: 794px; min-height: 1123px; padding: 34px 38px 30px; border-radius: var(--r-sm); box-shadow: 0 10px 25px rgba(0,0,0,.4); font-family: var(--font); display: flex; flex-direction: column; gap: 14px; }
+.reporte-page-cover { gap: 16px; }
+.reporte-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; }
+.reporte-logo-area { display: flex; align-items: center; gap: 12px; }
+.reporte-title { font-size: 17px; font-weight: 700; color: #0f172a; letter-spacing: 0; }
+.reporte-subtitle { font-size: 11px; color: #64748b; text-transform: uppercase; letter-spacing: .5px; }
+.reporte-meta { font-size: 11px; color: #334155; text-align: right; line-height: 1.5; }
+.reporte-page-head { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 2px solid #1e3a8a; padding-bottom: 8px; margin-bottom: 2px; }
+.reporte-page-title { font-size: 15px; font-weight: 800; color: #0f172a; text-transform: uppercase; }
+.reporte-page-kicker { font-size: 10px; color: #64748b; font-family: var(--mono); }
+.reporte-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.rep-kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: var(--r-sm); padding: 10px 12px; text-align: center; }
+.rep-kpi-val { font-family: var(--mono); font-size: 20px; font-weight: 700; color: #1e3a8a; line-height: 1.2; }
+.rep-kpi-lbl { font-size: 10px; font-weight: 600; color: #475569; margin-top: 4px; }
+.rep-kpi-sub { font-size: 8px; color: #94a3b8; margin-top: 2px; }
+.reporte-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.reporte-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.reporte-narrative-box { background: #f1f5f9; border-left: 4px solid #1e3a8a; border-radius: 0 var(--r-sm) var(--r-sm) 0; padding: 14px 16px; }
+.reporte-sec-title { font-size: 12px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-transform: uppercase; letter-spacing: .5px; }
+.reporte-text { font-size: 11px; line-height: 1.52; color: #334155; text-align: justify; }
+.reporte-chart-box { border: 1px solid #e2e8f0; border-radius: var(--r-sm); padding: 12px; background: #fff; }
+.reporte-chart-box.tall { min-height: 310px; }
+.reporte-chart-title { font-size: 11px; font-weight: 700; color: #475569; margin-bottom: 10px; text-align: center; border-bottom: 1px solid #f1f5f9; padding-bottom: 6px; }
+.reporte-canvas-wrap { position: relative; height: 220px; }
+.reporte-canvas-wrap.large { height: 270px; }
+.reporte-map-card { border: 1px solid #cbd5e1; border-radius: var(--r-sm); background: #f8fafc; padding: 12px; min-height: 285px; }
+.reporte-map-wrap { height: 230px; }
+.reporte-map-wrap svg { width: 100%; height: calc(100% - 18px); display: block; }
+.reporte-table { width: 100%; border-collapse: collapse; font-size: 9.5px; }
+.reporte-table th { background: #e2e8f0; color: #334155; text-align: left; padding: 6px 7px; font-weight: 800; text-transform: uppercase; }
+.reporte-table td { border-bottom: 1px solid #e5e7eb; color: #334155; padding: 5px 7px; }
+.reporte-table td.num, .reporte-table th.num { text-align: right; font-family: var(--mono); }
+.reporte-mini-note { font-size: 9px; color: #64748b; line-height: 1.45; }
+.reporte-note-grid { margin-top: auto; display: grid; grid-template-columns: 1.2fr 1fr; gap: 12px; }
+.reporte-notes { border: 1px solid #e2e8f0; border-left: 3px solid #64748b; padding: 10px 12px; font-size: 9px; color: #64748b; line-height: 1.4; }
+.reporte-signatures { display: none !important; }
+.reporte-page-footer { margin-top: auto; border-top: 1px solid #e2e8f0; padding-top: 7px; display: flex; justify-content: space-between; color: #64748b; font-size: 8.5px; }
+.reporte-page-cover .reporte-grid-2 { grid-template-columns: 1.15fr .85fr; align-items: stretch; }
+.reporte-page-cover .reporte-map-card { min-height: 510px; }
+.reporte-page-cover .reporte-map-wrap { height: 435px; }
+.reporte-page-cover .reporte-narrative-box { min-height: 510px; display: flex; flex-direction: column; }
+.reporte-page-cover .reporte-text { font-size: 11.3px; line-height: 1.58; }
+.reporte-page-cover .reporte-grid-3 { margin-top: 2px; }
+.reporte-page-cover .reporte-notes { min-height: 130px; font-size: 9.7px; }
+.reporte-hex-legend { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 5px; font-size: 8.5px; color: #64748b; }
+.reporte-hex-dot { width: 14px; height: 10px; clip-path: polygon(25% 0,75% 0,100% 50%,75% 100%,25% 100%,0 50%); display: inline-block; }
+
+@media print {
+  @page { size: A4; margin: 0; }
+  body::before, #sidebar, #header, .section-intro.no-print, .tendencias-controls, #reporte-print-btn { display: none !important; }
+  body, #app, #main, .section.active { background: #fff !important; color: #000 !important; overflow: visible !important; height: auto !important; width: 100% !important; padding: 0 !important; margin: 0 !important; }
+  .reporte-container { padding: 0 !important; margin: 0 !important; display: block !important; }
+  .reporte-page { box-shadow: none !important; border-radius: 0 !important; border: 0 !important; width: 210mm !important; height: 297mm !important; min-height: 297mm !important; padding: 12mm 12mm 10mm !important; background: #fff !important; color: #000 !important; page-break-after: always; break-after: page; }
+  .reporte-page:last-child { page-break-after: auto; break-after: auto; }
+  .rep-kpi-card, .reporte-chart-box { background: #fff !important; border: 1px solid #cbd5e1 !important; }
+  .reporte-kpis, .reporte-narrative-box, .reporte-chart-box, .reporte-map-card, .reporte-table, .reporte-notes { page-break-inside: avoid; break-inside: avoid; }
+}
 </style>
 </head>
 <body>
@@ -632,6 +957,9 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       <div class="nav-item" data-section="forecasting">
         <span class="nav-icon">◆</span> <span>IA &amp; ML Forecasting</span>
         <span class="nav-tag">beta</span>
+      </div>
+      <div class="nav-item" data-section="reporte">
+        <span class="nav-icon">📄</span> <span data-i18n="reporte">Reporte</span>
       </div>
       <div class="nav-item" data-section="chatbot">
         <span class="nav-icon">◎</span> <span>Asistente IA</span>
@@ -801,13 +1129,35 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
           <div class="section-title">Tendencias históricas</div>
           <div class="section-subtitle">Series temporales por municipio · 2019–2026</div>
         </div>
-        <div class="tendencias-controls">
-          <label>Municipio: <select id="mun-select"></select></label>
+        <div class="tendencias-controls" style="display: flex; gap: 16px; align-items: center;">
+          <label>Municipio: <select id="mun-select" class="header-select"></select></label>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div class="map-ctrl-label" style="margin-bottom: 0;">Métrica</div>
+            <div class="segmented-control" id="tendencias-metrica-ctrl">
+              <button class="segmented-btn active" data-val="incidencia_dengue">Incidencia ×100k</button>
+              <button class="segmented-btn" data-val="conteo_dengue">Casos absolutos</button>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 4px;">
+            <div class="map-ctrl-label" style="margin-bottom: 0;">Escala Temporal</div>
+            <div class="segmented-control" id="tendencias-escala-ctrl">
+              <button class="segmented-btn active" data-val="anual">Anual (Años)</button>
+              <button class="segmented-btn" data-val="semanal">Semanal (Semanas)</button>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="chart-card full">
-        <div class="chart-card-title" data-i18n="serie_hist">Serie histórica — Incidencia ×100k</div>
-        <div class="chart-wrap"><canvas id="chart-tendencia"></canvas></div>
+      <div class="charts-stack">
+        <div class="chart-card" id="card-tendencias-1">
+          <div class="chart-card-title" id="title-tendencias-1">—</div>
+          <div class="chart-wrap"><canvas id="chart-tendencias-1"></canvas></div>
+        </div>
+        <div class="chart-card" id="card-tendencias-2">
+          <div class="chart-card-title" id="title-tendencias-2">—</div>
+          <div class="chart-wrap"><canvas id="chart-tendencias-2"></canvas></div>
+        </div>
       </div>
     </section>
 
@@ -937,6 +1287,124 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       </div>
     </section>
 
+    <!-- ── 6c. REPORTE ────────────────────────────────────────────────────── -->
+        <section id="s-reporte" class="section">
+      <div class="section-intro no-print">
+        <div>
+          <div class="section-title">Generacion de Reporte Epidemiologico</div>
+          <div class="section-subtitle">Informe tecnico imprimible en 3 paginas A4 por municipio</div>
+        </div>
+        <div class="tendencias-controls">
+          <label>Municipio: <select id="reporte-mun-select" class="header-select"></select></label>
+          <button id="reporte-print-btn" class="header-btn" style="background:var(--accent);color:white;border-color:var(--accent);font-weight:bold;margin-left:8px;">Exportar a PDF</button>
+        </div>
+      </div>
+
+      <div class="reporte-container">
+        <article class="reporte-page reporte-page-cover">
+          <div class="reporte-header">
+            <div class="reporte-logo-area">
+              <div class="reporte-logo-univalle">
+                <svg width="40" height="50" viewBox="0 0 40 50" aria-hidden="true">
+                  <polygon points="20,5 35,15 35,35 20,45 5,35 5,15" fill="none" stroke="#f87171" stroke-width="2"/>
+                  <polygon points="20,12 30,18 30,32 20,38 10,32 10,18" fill="#f87171" opacity="0.3"/>
+                  <line x1="20" y1="5" x2="20" y2="45" stroke="#f87171" stroke-width="1.5"/>
+                </svg>
+              </div>
+              <div class="reporte-header-text">
+                <h1 class="reporte-title">INFORME DE SITUACION EPIDEMIOLOGICA</h1>
+                <p class="reporte-subtitle">Vigilancia en Salud Publica - Dengue</p>
+              </div>
+            </div>
+            <div class="reporte-meta">
+              <div><strong>Departamento:</strong> Valle del Cauca</div>
+              <div><strong>Municipio:</strong> <span id="rep-mun-val">Cali</span></div>
+              <div><strong>Anio de analisis:</strong> <span id="rep-year-val">2024</span></div>
+              <div><strong>Fecha de emision:</strong> <span id="rep-date-val">2026-06-03</span></div>
+            </div>
+          </div>
+
+          <div class="reporte-kpis">
+            <div class="rep-kpi-card"><div class="rep-kpi-val" id="rep-kpi-total">-</div><div class="rep-kpi-lbl">Total de casos</div><div class="rep-kpi-sub">Anio seleccionado</div></div>
+            <div class="rep-kpi-card"><div class="rep-kpi-val" id="rep-kpi-inc">-</div><div class="rep-kpi-lbl">Incidencia</div><div class="rep-kpi-sub">x 100,000 habitantes</div></div>
+            <div class="rep-kpi-card"><div class="rep-kpi-val" id="rep-kpi-pob">-</div><div class="rep-kpi-lbl">Poblacion</div><div class="rep-kpi-sub">Proyeccion base DANE</div></div>
+            <div class="rep-kpi-card"><div class="rep-kpi-val" id="rep-kpi-infantil">-</div><div class="rep-kpi-lbl">Menores de 15</div><div class="rep-kpi-sub">Casos estimados</div></div>
+          </div>
+
+          <div class="reporte-grid-2">
+            <div class="reporte-map-card">
+              <h3 class="reporte-chart-title">Mapa de referencia hexagonal</h3>
+              <div id="rep-map-svg" class="reporte-map-wrap"></div>
+              <p class="reporte-mini-note">Referencia adaptada del visor de hexagonos: la malla resume concentracion territorial relativa dentro del municipio seleccionado.</p>
+            </div>
+            <div class="reporte-narrative-box">
+              <h2 class="reporte-sec-title">Resumen y diagnostico epidemiologico</h2>
+              <p id="reporte-dynamic-text" class="reporte-text">Generando resumen descriptivo del territorio...</p>
+            </div>
+          </div>
+
+          <div class="reporte-grid-3">
+            <div class="reporte-notes"><strong>Clasificacion:</strong><br><span id="rep-risk-note">-</span></div>
+            <div class="reporte-notes"><strong>Comparacion temporal:</strong><br><span id="rep-trend-note">-</span></div>
+            <div class="reporte-notes"><strong>Prioridad operativa:</strong><br><span id="rep-action-note">-</span></div>
+          </div>
+
+          <div class="reporte-page-footer"><span>GeoSalud - Reporte automatico</span><span>Pagina 1 de 3</span></div>
+        </article>
+
+        <article class="reporte-page">
+          <div class="reporte-page-head">
+            <div class="reporte-page-title">Canal endemico y seguimiento semanal</div>
+            <div class="reporte-page-kicker"><span id="rep-page2-mun">Municipio</span> - <span id="rep-page2-year">2024</span></div>
+          </div>
+          <div class="reporte-narrative-box">
+            <h2 class="reporte-sec-title">Lectura automatizada del canal endemico semanal</h2>
+            <p id="rep-endemic-text" class="reporte-text">Calculando posicion semanal frente al comportamiento historico.</p>
+          </div>
+          <div class="reporte-charts-grid">
+            <div class="reporte-chart-box tall">
+              <h3 class="reporte-chart-title">Canal endemico semanal estimado</h3>
+              <div class="reporte-canvas-wrap large"><canvas id="rep-chart-endemic"></canvas></div>
+            </div>
+            <div class="reporte-chart-box tall">
+              <h3 class="reporte-chart-title">Casos e incidencia semanal</h3>
+              <div class="reporte-canvas-wrap large"><canvas id="rep-chart-historical"></canvas></div>
+            </div>
+          </div>
+          <div class="reporte-chart-box">
+            <h3 class="reporte-chart-title">Semanas con mayor intensidad estimada</h3>
+            <table class="reporte-table" id="rep-annual-table"></table>
+          </div>
+          <div class="reporte-page-footer"><span>Fuente: SIVIGILA / Proyecciones demograficas integradas</span><span>Pagina 2 de 3</span></div>
+        </article>
+
+        <article class="reporte-page">
+          <div class="reporte-page-head">
+            <div class="reporte-page-title">Perfil poblacional y priorizacion territorial</div>
+            <div class="reporte-page-kicker"><span id="rep-page3-mun">Municipio</span> - Dengue</div>
+          </div>
+          <div class="reporte-grid-2">
+            <div class="reporte-chart-box tall">
+              <h3 class="reporte-chart-title">Piramide poblacional con casos estimados</h3>
+              <div class="reporte-canvas-wrap large"><canvas id="rep-chart-pyramid"></canvas></div>
+            </div>
+            <div class="reporte-chart-box tall">
+              <h3 class="reporte-chart-title">Top 10 municipios por casos</h3>
+              <table class="reporte-table" id="rep-top-table"></table>
+            </div>
+          </div>
+          <div class="reporte-chart-box">
+            <h3 class="reporte-chart-title">Distribucion por cursos de vida</h3>
+            <div class="reporte-canvas-wrap"><canvas id="rep-chart-demographics"></canvas></div>
+          </div>
+          <div class="reporte-note-grid">
+            <div class="reporte-notes"><strong>Nota tecnica:</strong> Los casos por grupo poblacional son una estimacion proporcional basada en la estructura demografica disponible para el municipio y el total de casos notificados del anio seleccionado. No reemplazan la desagregacion nominal por edad y sexo.</div>
+            <div class="reporte-notes"><strong>Uso recomendado:</strong> orientar priorizacion inicial, focalizar busqueda activa, vigilancia comunitaria y control vectorial. Las decisiones finales deben contrastarse con lineamientos vigentes y datos oficiales depurados.</div>
+          </div>
+          <div class="reporte-page-footer"><span>GeoSalud - Universidad del Valle</span><span>Pagina 3 de 3</span></div>
+        </article>
+      </div>
+    </section>
     <!-- ── 7. AEDE ────────────────────────────────────────────────────────── -->
     <section id="s-aede" class="section">
       <div class="hex-embed-shell">
@@ -1338,9 +1806,9 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
 <!-- <script src="geodata-muni.js"></script>    -->
 
 <script src="demografia-data.js"></script>
-<script src="geodata-data.js?v=4"></script>
-<script src="geodata-app.js?v=4"></script>
-<script src="geodata-forecasting.js?v=1"></script>
-<script src="geodata-chatbot.js?v=1"></script>
+<script src="geodata-data.js?v=7"></script>
+<script src="geodata-app.js?v=7"></script>
+<script src="geodata-forecasting.js?v=2"></script>
+<script src="geodata-chatbot.js?v=2"></script>
 </body>
 </html>

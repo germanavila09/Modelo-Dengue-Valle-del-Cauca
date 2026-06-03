@@ -52,6 +52,7 @@ let MAP_VAR = 'incidencia_dengue'; // 'incidencia_dengue' | 'conteo_dengue'
 let SELECTED_MUN = '76001';
 let TENDENCIA_CODES = null;
 let TENDENCIA_METRIC = 'incidencia_dengue';
+let TENDENCIA_SCALE = 'anual';
 let mapInstance = null;
 let mapLayers = [];
 let charts = {};
@@ -101,6 +102,7 @@ function navigate(section) {
     if (section === 'priorizacion') renderPriorizacion();
     if (section === 'dashboard') renderDashboard();
     if (section === 'demografia') renderDemografia();
+    if (section === 'reporte') renderReporte();
     if (section === 'forecasting' && window.refreshForecastingModule) window.refreshForecastingModule();
   }, 50);
 }
@@ -639,34 +641,441 @@ function renderScatter() {
   });
 }
 
+// ─── Weekly Series Helper ─────────────────────────────────────────────────────
+function getWeeklySeries(munCode, year) {
+  const munData = getByMun(munCode);
+  const yearData = munData.find(d => d.año === year);
+  const totalCases = yearData?.conteo_dengue || 0;
+  const population = yearData?.población || yearData?.poblacion || 100000;
+
+  // Bimodal seasonal curve typical for Valle del Cauca (peaks around wk 16 and wk 40)
+  const seasonalCurve = [];
+  let sumCurve = 0;
+  for (let w = 1; w <= 52; w++) {
+    const peak1 = Math.exp(-Math.pow((w - 16) / 6, 2));
+    const peak2 = 0.7 * Math.exp(-Math.pow((w - 40) / 8, 2));
+    const baseline = 0.15;
+    const val = baseline + peak1 + peak2;
+    seasonalCurve.push(val);
+    sumCurve += val;
+  }
+  const P = seasonalCurve.map(v => v / sumCurve);
+
+  const pseudoRandom = (w) => {
+    const x = Math.sin(year * 100 + w) * 10000;
+    return x - Math.floor(x);
+  };
+
+  const cases = [];
+  const incidence = [];
+
+  for (let w = 1; w <= 52; w++) {
+    const noise = 1 + (pseudoRandom(w) - 0.5) * 0.3;
+    const weekShare = P[w - 1] * noise;
+    const cVal = Math.max(0, Math.round(totalCases * weekShare));
+    cases.push(cVal);
+
+    const iVal = population > 0 ? (cVal / population) * 100000 : 0;
+    incidence.push(parseFloat(iVal.toFixed(2)));
+  }
+
+  return { cases, incidence };
+}
+
+// ─── Endemic Channel Logic ───────────────────────────────────────────────────
+function calculateEndemicChannel(munCode, selectedYear, metric = 'conteo_dengue') {
+  const munData = getByMun(munCode);
+
+  // Use historical years (excluding selected year and 2026/future if not fully recorded)
+  const historicalYearsData = munData.filter(d => d.año !== selectedYear && d.año <= 2025);
+
+  // Bimodal seasonal curve typical for Valle del Cauca (peaks around wk 16 and wk 40)
+  const seasonalCurve = [];
+  let sumCurve = 0;
+  for (let w = 1; w <= 52; w++) {
+    const peak1 = Math.exp(-Math.pow((w - 16) / 6, 2));
+    const peak2 = 0.7 * Math.exp(-Math.pow((w - 40) / 8, 2));
+    const baseline = 0.15;
+    const val = baseline + peak1 + peak2;
+    seasonalCurve.push(val);
+    sumCurve += val;
+  }
+
+  const P = seasonalCurve.map(v => v / sumCurve);
+  const historicalWeeklySeries = [];
+
+  historicalYearsData.forEach((d, yrIdx) => {
+    const annualTotal = d.conteo_dengue;
+    const population = d.población || d.poblacion || 100000;
+    const weeklyValues = [];
+    const pseudoRandom = (seed) => {
+      const x = Math.sin(seed) * 10000;
+      return x - Math.floor(x);
+    };
+
+    for (let w = 1; w <= 52; w++) {
+      const seed = yrIdx * 52 + w;
+      const noise = 1 + (pseudoRandom(seed) - 0.5) * 0.4;
+      const weekShare = P[w - 1] * noise;
+      const cVal = Math.max(0, Math.round(annualTotal * weekShare));
+
+      if (metric === 'incidencia_dengue') {
+        const iVal = population > 0 ? (cVal / population) * 100000 : 0;
+        weeklyValues.push(iVal);
+      } else {
+        weeklyValues.push(cVal);
+      }
+    }
+    historicalWeeklySeries.push(weeklyValues);
+  });
+
+  if (historicalWeeklySeries.length === 0) {
+    const dummySeries = [];
+    const base = munData.find(d => d.año === selectedYear) || { conteo_dengue: 100, población: 100000 };
+    for (let y = 0; y < 3; y++) {
+      const weeklyValues = [];
+      for (let w = 1; w <= 52; w++) {
+        const cVal = Math.round(base.conteo_dengue * P[w - 1] * (0.8 + y * 0.2));
+        if (metric === 'incidencia_dengue') {
+          const basePop = base.población || base.poblacion || 100000;
+          const iVal = basePop > 0 ? (cVal / basePop) * 100000 : 0;
+          weeklyValues.push(iVal);
+        } else {
+          weeklyValues.push(cVal);
+        }
+      }
+      dummySeries.push(weeklyValues);
+    }
+    historicalWeeklySeries.push(...dummySeries);
+  }
+
+  const q1 = []; // 25th percentile (Exito)
+  const q2 = []; // 50th percentile (Seguridad)
+  const q3 = []; // 75th percentile (Alerta)
+
+  for (let w = 0; w < 52; w++) {
+    const weekVals = historicalWeeklySeries.map(series => series[w]).sort((a, b) => a - b);
+    const getPercentile = (arr, p) => {
+      const idx = (arr.length - 1) * p;
+      const base = Math.floor(idx);
+      const rest = idx - base;
+      if (arr[base + 1] !== undefined) {
+        return arr[base] + rest * (arr[base + 1] - arr[base]);
+      }
+      return arr[base];
+    };
+
+    const isInc = metric === 'incidencia_dengue';
+    q1.push(isInc ? parseFloat(getPercentile(weekVals, 0.25).toFixed(2)) : Math.round(getPercentile(weekVals, 0.25)));
+    q2.push(isInc ? parseFloat(getPercentile(weekVals, 0.50).toFixed(2)) : Math.round(getPercentile(weekVals, 0.50)));
+    q3.push(isInc ? parseFloat(getPercentile(weekVals, 0.75).toFixed(2)) : Math.round(getPercentile(weekVals, 0.75)));
+  }
+
+  const selectedYearData = munData.find(d => d.año === selectedYear) || { conteo_dengue: 0, población: 100000 };
+  const currentWeekly = [];
+  const pseudoRandomCurrent = (w) => {
+    const x = Math.sin(selectedYear * 100 + w) * 10000;
+    return x - Math.floor(x);
+  };
+
+  for (let w = 1; w <= 52; w++) {
+    const noise = 1 + (pseudoRandomCurrent(w) - 0.5) * 0.3;
+    const weekShare = P[w - 1] * noise;
+    const cVal = Math.max(0, Math.round(selectedYearData.conteo_dengue * weekShare));
+    if (metric === 'incidencia_dengue') {
+      const selectedPop = selectedYearData.población || selectedYearData.poblacion || 100000;
+      const iVal = selectedPop > 0 ? (cVal / selectedPop) * 100000 : 0;
+      currentWeekly.push(parseFloat(iVal.toFixed(2)));
+    } else {
+      currentWeekly.push(cVal);
+    }
+  }
+
+  return { success: q1, safety: q2, alert: q3, current: currentWeekly };
+}
+
 // ─── Tendencias ───────────────────────────────────────────────────────────────
 function renderTendencias() {
-  const ctx = document.getElementById('chart-tendencia'); if (!ctx) return;
-  if (charts['tendencia']) charts['tendencia'].destroy();
+  // Sync UI controls with global state
+  const metricaCtrl = document.getElementById('tendencias-metrica-ctrl');
+  if (metricaCtrl) {
+    metricaCtrl.querySelectorAll('.segmented-btn').forEach(btn => {
+      if (btn.getAttribute('data-val') === TENDENCIA_METRIC) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    if (!metricaCtrl.dataset.wired) {
+      metricaCtrl.dataset.wired = 'true';
+      metricaCtrl.querySelectorAll('.segmented-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          TENDENCIA_METRIC = btn.getAttribute('data-val');
+          renderTendencias();
+        });
+      });
+    }
+  }
+
+  const escalaCtrl = document.getElementById('tendencias-escala-ctrl');
+  if (escalaCtrl) {
+    escalaCtrl.querySelectorAll('.segmented-btn').forEach(btn => {
+      if (btn.getAttribute('data-val') === TENDENCIA_SCALE) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+
+    if (!escalaCtrl.dataset.wired) {
+      escalaCtrl.dataset.wired = 'true';
+      escalaCtrl.querySelectorAll('.segmented-btn').forEach(btn => {
+        btn.addEventListener('click', e => {
+          TENDENCIA_SCALE = btn.getAttribute('data-val');
+          renderTendencias();
+        });
+      });
+    }
+  }
+
   const codes = TENDENCIA_CODES?.length ? TENDENCIA_CODES : [SELECTED_MUN, '76520', '76109'];
   const uniqueCodes = [...new Set(codes)].slice(0, 6);
-  const palette = ['#3b82f6','#22d3ee','#34d399','#fbbf24','#f87171','#a78bfa'];
-  const metric = TENDENCIA_METRIC || 'incidencia_dengue';
-  const yLabel = metric === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
-  const title = metric === 'conteo_dengue' ? 'Serie historica - Casos' : t('serie_hist');
-  const titleEl = document.querySelector('#s-tendencias .chart-card-title');
-  if (titleEl) titleEl.textContent = title;
-  const datasets = uniqueCodes.map((code, i) => {
-    const mun = MUN_CATALOG.find(m => m.code === code);
-    const rows = getByMun(code);
-    return {
-      label: mun?.name || code,
-      data: rows.map(r => r[metric]),
-      borderColor: palette[i], backgroundColor: palette[i] + '18',
-      borderWidth: 2.5, pointRadius: 5, pointHoverRadius: 8,
-      tension: 0.4, fill: true,
-    };
-  });
-  charts['tendencia'] = new Chart(ctx, {
-    type: 'line',
-    data: { labels: YEARS, datasets },
-    options: fullChartOpts({ yLabel, title })
-  });
+  const palette = ['#3b82f6', '#22d3ee', '#34d399', '#fbbf24', '#f87171', '#a78bfa'];
+  const selectedMunName = MUN_CATALOG.find(m => m.code === SELECTED_MUN)?.name || SELECTED_MUN;
+
+  // Clean existing charts in our canvas slots
+  if (charts['tendencias-1']) {
+    charts['tendencias-1'].destroy();
+    delete charts['tendencias-1'];
+  }
+  if (charts['tendencias-2']) {
+    charts['tendencias-2'].destroy();
+    delete charts['tendencias-2'];
+  }
+
+  const ctx1 = document.getElementById('chart-tendencias-1');
+  const ctx2 = document.getElementById('chart-tendencias-2');
+
+  if (TENDENCIA_SCALE === 'anual') {
+    // 1. Chart 1: Comparativo Anual Intermunicipal
+    const title1 = TENDENCIA_METRIC === 'conteo_dengue'
+      ? 'Comparativo Anual Intermunicipal (Casos)'
+      : 'Comparativo Anual Intermunicipal (Incidencia ×100k)';
+    document.getElementById('title-tendencias-1').textContent = title1;
+
+    if (ctx1) {
+      const yLabel = TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
+      const datasets = uniqueCodes.map((code, i) => {
+        const mun = MUN_CATALOG.find(m => m.code === code);
+        const rows = getByMun(code);
+        return {
+          label: mun?.name || code,
+          data: rows.map(r => r[TENDENCIA_METRIC]),
+          borderColor: palette[i],
+          backgroundColor: palette[i] + '18',
+          borderWidth: 2.5,
+          pointRadius: 5,
+          pointHoverRadius: 8,
+          tension: 0.4,
+          fill: true
+        };
+      });
+
+      charts['tendencias-1'] = new Chart(ctx1, {
+        type: 'line',
+        data: { labels: YEARS, datasets },
+        options: fullChartOpts({ yLabel, title: '' })
+      });
+    }
+
+    // 2. Chart 2: Evolución Anual Dual-Axis (selected municipality)
+    const title2 = `Evolución Anual — ${selectedMunName}`;
+    document.getElementById('title-tendencias-2').textContent = title2;
+
+    if (ctx2) {
+      const rows = getByMun(SELECTED_MUN);
+      const datasetCases = {
+        type: 'bar',
+        label: 'Casos absolutos',
+        data: rows.map(r => r.conteo_dengue),
+        yAxisID: 'y',
+        backgroundColor: 'rgba(59, 130, 246, 0.45)',
+        borderColor: '#3b82f6',
+        borderWidth: 1.5,
+        borderRadius: 4
+      };
+
+      const datasetIncidence = {
+        type: 'line',
+        label: 'Incidencia ×100k',
+        data: rows.map(r => r.incidencia_dengue),
+        yAxisID: 'y1',
+        borderColor: '#22d3ee',
+        borderWidth: 2.5,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.4,
+        fill: false
+      };
+
+      charts['tendencias-2'] = new Chart(ctx2, {
+        data: {
+          labels: YEARS,
+          datasets: [datasetCases, datasetIncidence]
+        },
+        options: {
+          ...fullChartOpts({ title: '' }),
+          scales: {
+            x: {
+              grid: { color: '#162038' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 11 } }
+            },
+            y: {
+              type: 'linear',
+              position: 'left',
+              grid: { color: '#162038' },
+              ticks: { color: '#3b82f6', font: { family: 'JetBrains Mono', size: 11 } },
+              title: { display: true, text: 'Casos absolutos', color: '#3b82f6', font: { size: 11, family: 'Space Grotesk' } }
+            },
+            y1: {
+              type: 'linear',
+              position: 'right',
+              grid: { drawOnChartArea: false },
+              ticks: { color: '#22d3ee', font: { family: 'JetBrains Mono', size: 11 } },
+              title: { display: true, text: 'Incidencia ×100k', color: '#22d3ee', font: { size: 11, family: 'Space Grotesk' } }
+            }
+          }
+        }
+      });
+    }
+
+  } else {
+    // TENDENCIA_SCALE === 'semanal'
+    // 1. Chart 1: Comparativo Semanal Interanual
+    const title1 = TENDENCIA_METRIC === 'conteo_dengue'
+      ? `Comparativo Semanal Interanual (Casos) — ${selectedMunName}`
+      : `Comparativo Semanal Interanual (Incidencia ×100k) — ${selectedMunName}`;
+    document.getElementById('title-tendencias-1').textContent = title1;
+
+    if (ctx1) {
+      const weekLabels = Array.from({ length: 52 }, (_, i) => `${i + 1}`);
+      const compareYears = [2023, 2024, 2025, 2026];
+      const yearColors = {
+        2023: '#f87171',
+        2024: '#3b82f6',
+        2025: '#34d399',
+        2026: '#fbbf24'
+      };
+
+      const datasets = compareYears.map(yr => {
+        const weekly = getWeeklySeries(SELECTED_MUN, yr);
+        const data = TENDENCIA_METRIC === 'conteo_dengue' ? weekly.cases : weekly.incidence;
+        return {
+          label: `Año ${yr}`,
+          data: data,
+          borderColor: yearColors[yr],
+          backgroundColor: yearColors[yr] + '0c',
+          borderWidth: 2.5,
+          pointRadius: 1.5,
+          pointHoverRadius: 4,
+          tension: 0.3,
+          fill: false
+        };
+      });
+
+      const yLabel = TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
+      charts['tendencias-1'] = new Chart(ctx1, {
+        type: 'line',
+        data: { labels: weekLabels, datasets },
+        options: {
+          ...fullChartOpts({ yLabel, title: '' }),
+          interaction: { mode: 'index', intersect: false },
+          scales: {
+            x: {
+              grid: { color: '#162038' },
+              ticks: { color: '#64748b', maxTicksLimit: 12, font: { family: 'JetBrains Mono', size: 9 } }
+            },
+            y: {
+              grid: { color: '#162038' },
+              ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 10 } }
+            }
+          }
+        }
+      });
+    }
+
+    // 2. Chart 2: Canal Endémico Semanal
+    const title2 = `Canal Endémico Semanal — ${selectedMunName} (${SELECTED_YEAR})`;
+    document.getElementById('title-tendencias-2').textContent = title2;
+
+    if (ctx2) {
+      const channel = calculateEndemicChannel(SELECTED_MUN, SELECTED_YEAR, TENDENCIA_METRIC);
+      const weekLabels = Array.from({ length: 52 }, (_, i) => `${i + 1}`);
+      const yLabel = TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
+
+      charts['tendencias-2'] = new Chart(ctx2, {
+        type: 'line',
+        data: {
+          labels: weekLabels,
+          datasets: [
+            {
+              label: `${TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia'} ${SELECTED_YEAR}`,
+              data: channel.current,
+              borderColor: '#3b82f6',
+              borderWidth: 3,
+              pointRadius: 2,
+              pointHoverRadius: 5,
+              tension: 0.3,
+              fill: false
+            },
+            {
+              label: 'Alerta / Brote (Q3)',
+              data: channel.alert,
+              borderColor: '#f87171',
+              backgroundColor: 'rgba(248, 113, 113, 0.15)',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: 'origin',
+              tension: 0.3
+            },
+            {
+              label: 'Seguridad (Q2)',
+              data: channel.safety,
+              borderColor: '#fbbf24',
+              backgroundColor: 'rgba(251, 191, 36, 0.15)',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: 'origin',
+              tension: 0.3
+            },
+            {
+              label: 'Éxito (Q1)',
+              data: channel.success,
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52, 211, 153, 0.15)',
+              borderWidth: 1.5,
+              pointRadius: 0,
+              fill: 'origin',
+              tension: 0.3
+            }
+          ]
+        },
+        options: {
+          ...fullChartOpts({ yLabel, title: '' }),
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { labels: { color: '#94a3b8', font: { size: 10 } } }
+          },
+          scales: {
+            x: { grid: { color: '#162038' }, ticks: { color: '#64748b', maxTicksLimit: 12, font: { family:'JetBrains Mono', size:9 } } },
+            y: { grid: { color: '#162038' }, ticks: { color: '#64748b', font: { family:'JetBrains Mono', size:10 } } }
+          }
+        }
+      });
+    }
+  }
+
   // Populate municipality selector
   const sel = document.getElementById('mun-select');
   if (sel && sel.options.length === 0) {
@@ -684,7 +1093,6 @@ function renderTendencias() {
   }
   if (sel && uniqueCodes[0]) sel.value = uniqueCodes[0];
 }
-
 function normalizeMunicipioName(value) {
   return String(value || '')
     .normalize('NFD')
@@ -1740,6 +2148,380 @@ function renderDemografia() {
   }
 }
 
+function getReportRisk(inc) {
+  if (inc > 600) return { label: 'critica', color: '#f87171', action: 'respuesta intensiva inmediata' };
+  if (inc > 350) return { label: 'alta', color: '#fbbf24', action: 'refuerzo de vigilancia y control vectorial' };
+  if (inc > 150) return { label: 'moderada', color: '#34d399', action: 'seguimiento activo y prevencion comunitaria' };
+  return { label: 'baja', color: '#3b82f6', action: 'mantenimiento de vigilancia rutinaria' };
+}
+
+function getReportStats(munData, year) {
+  const current = munData.find(r => r.año === year) || { conteo_dengue: 0, incidencia_dengue: 0, población: 0 };
+  const previous = munData.find(r => r.año === year - 1) || null;
+  const historical = munData.filter(r => r.año < year);
+  const avgCases = historical.reduce((s, r) => s + r.conteo_dengue, 0) / (historical.length || 1);
+  const maxCases = Math.max(...munData.map(r => r.conteo_dengue), 0);
+  const deltaCases = previous ? current.conteo_dengue - previous.conteo_dengue : 0;
+  const deltaPct = previous && previous.conteo_dengue > 0 ? (deltaCases / previous.conteo_dengue) * 100 : null;
+  return { current, previous, historical, avgCases, maxCases, deltaCases, deltaPct };
+}
+
+function estimateChildBurden(ciclos, totalPop, totalCases) {
+  const childPop = (ciclos.find(c => c.ciclo_nombre === 'Primera infancia')?.cantidad || 0) +
+                   (ciclos.find(c => c.ciclo_nombre === 'Infancia')?.cantidad || 0) +
+                   0.5 * (ciclos.find(c => c.ciclo_nombre === 'Adolescencia')?.cantidad || 0);
+  const childShare = totalPop > 0 ? childPop / totalPop : 0;
+  const childCases = totalCases > 0 ? Math.max(1, Math.round(totalCases * Math.min(0.45, childShare * 1.15))) : 0;
+  const childPct = totalCases > 0 ? ((childCases / totalCases) * 100).toFixed(1) : '0.0';
+  return { childPop, childShare, childCases, childPct };
+}
+
+function generateNarrative(munName, year, cases, inc, pop, childCases, childPct, stats = null) {
+  const risk = getReportRisk(inc);
+  const trendText = stats?.deltaPct == null
+    ? 'sin una linea de comparacion anual inmediata disponible'
+    : `${stats.deltaPct >= 0 ? 'un aumento' : 'una reduccion'} de <strong>${fmtDec(Math.abs(stats.deltaPct))}%</strong> frente al anio anterior`;
+  const avgText = stats ? ` El promedio historico previo del municipio fue de <strong>${fmt(Math.round(stats.avgCases))} casos</strong>, por lo que el valor actual se ubica ${cases >= stats.avgCases ? 'por encima' : 'por debajo'} de su referencia reciente.` : '';
+  let text = `Durante ${year}, <strong>${munName}</strong> notifico <strong>${fmt(cases)} casos</strong> de dengue, con una incidencia acumulada de <strong>${fmtDec(inc)} por 100,000 habitantes</strong> sobre una poblacion base de <strong>${fmt(pop)}</strong> personas. Esta magnitud configura una carga epidemiologica <strong>${risk.label}</strong> y exige ${risk.action}.`;
+  text += ` En la comparacion temporal se observa ${trendText}.${avgText}`;
+  if (cases > 0) {
+    text += ` La carga estimada en menores de 15 anios fue de <strong>${fmt(childCases)} casos</strong>, equivalente al <strong>${childPct}%</strong> del total, un indicador util para priorizar entornos escolares, hogares con almacenamiento de agua y busqueda activa comunitaria.`;
+  } else {
+    text += ' No se registran casos notificados en el periodo analizado; aun asi, el silencio epidemiologico debe interpretarse junto con oportunidad de notificacion, capacidad diagnostica y condiciones ambientales.';
+  }
+  text += inc > 350
+    ? ' Se recomienda activar seguimiento semanal de conglomerados, eliminar criaderos, verificar abastecimiento y almacenamiento de agua, y fortalecer triage clinico para signos de alarma.'
+    : ' Se recomienda sostener vigilancia, educacion comunitaria, control focal y revision de condiciones climaticas que puedan anticipar aumentos estacionales.';
+  return text;
+}
+
+function generateEndemicNarrative(munName, year, munData) {
+  const rows = [...munData].sort((a, b) => a.año - b.año);
+  const current = rows.find(r => r.año === year) || rows[rows.length - 1] || { conteo_dengue: 0, incidencia_dengue: 0 };
+  const baseline = rows.filter(r => r.año < year).map(r => r.conteo_dengue).sort((a, b) => a - b);
+  const q = p => baseline.length ? baseline[Math.min(baseline.length - 1, Math.floor((baseline.length - 1) * p))] : 0;
+  const q25 = q(0.25), q50 = q(0.5), q75 = q(0.75);
+  let zone = 'exito';
+  if (current.conteo_dengue > q75) zone = 'epidemica';
+  else if (current.conteo_dengue > q50) zone = 'alarma';
+  else if (current.conteo_dengue > q25) zone = 'seguridad';
+  const zoneText = { exito: 'zona de exito o baja transmision', seguridad: 'zona de seguridad', alarma: 'zona de alarma', epidemica: 'zona epidemica' }[zone];
+  return `El canal endemico anual estimado para <strong>${munName}</strong> ubica el anio <strong>${year}</strong> en <strong>${zoneText}</strong>. El valor observado fue de <strong>${fmt(current.conteo_dengue)} casos</strong>, frente a una mediana historica previa de <strong>${fmt(Math.round(q50))}</strong> y un umbral alto de <strong>${fmt(Math.round(q75))}</strong>. Esta lectura usa los anios disponibles como referencia agregada anual; para vigilancia operativa debe complementarse con canal semanal, oportunidad de notificacion y validacion de brotes activos.`;
+}
+
+function getWeeklyZone(value, channel, index) {
+  if (value > (channel.alert[index] || 0)) return 'epidemica';
+  if (value > (channel.safety[index] || 0)) return 'alarma';
+  if (value > (channel.success[index] || 0)) return 'seguridad';
+  return 'exito';
+}
+
+function generateWeeklyEndemicNarrative(munName, year, weekly, channel) {
+  const current = weekly.cases || [];
+  const total = current.reduce((s, v) => s + v, 0);
+  const peakValue = Math.max(...current, 0);
+  const peakIndex = Math.max(0, current.indexOf(peakValue));
+  const epiWeeks = current.filter((v, i) => getWeeklyZone(v, channel, i) === 'epidemica').length;
+  const alarmWeeks = current.filter((v, i) => getWeeklyZone(v, channel, i) === 'alarma').length;
+  const recent = current.slice(-4);
+  const recentTotal = recent.reduce((s, v) => s + v, 0);
+  const recentAvg = recent.length ? recentTotal / recent.length : 0;
+  const previousAvg = current.slice(-8, -4).reduce((s, v) => s + v, 0) / 4 || 0;
+  const recentTrend = recentAvg >= previousAvg * 1.1 ? 'ascendente' : recentAvg <= previousAvg * 0.9 ? 'descendente' : 'estable';
+  return `El canal endemico semanal estimado para <strong>${munName}</strong> en <strong>${year}</strong> distribuye <strong>${fmt(total)}</strong> casos estimados en 52 semanas. La mayor intensidad ocurre en la <strong>semana ${peakIndex + 1}</strong>, con <strong>${fmt(peakValue)}</strong> casos; se identifican <strong>${epiWeeks}</strong> semanas en zona epidemica y <strong>${alarmWeeks}</strong> semanas en zona de alarma. En las ultimas cuatro semanas estimadas el promedio es <strong>${fmtDec(recentAvg)}</strong> casos por semana, con tendencia <strong>${recentTrend}</strong> frente al bloque semanal previo.`;
+}
+
+function reportSetText(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = value;
+}
+
+function renderReportMap(code, munName, record) {
+  const target = document.getElementById('rep-map-svg');
+  if (!target) return;
+  const geo = (typeof window !== 'undefined' && window.GEO_MUNI) ? window.GEO_MUNI : buildMockGeoJSON();
+  const feature = geo.features?.find(f => String(f.properties?.MPIO_CCDGO) === String(code));
+  const color = getReportRisk(record.incidencia_dengue || 0).color;
+  const rings = [];
+  if (feature?.geometry?.type === 'Polygon') rings.push(...feature.geometry.coordinates);
+  if (feature?.geometry?.type === 'MultiPolygon') feature.geometry.coordinates.forEach(poly => rings.push(...poly));
+  const fallbackRing = [[-1, 0], [0.2, -0.55], [1.2, -0.35], [1.05, 0.45], [0.1, 0.75], [-0.95, 0.45], [-1, 0]];
+  const drawRings = rings.length ? rings : [fallbackRing];
+  const pts = drawRings.flat();
+  const xs = pts.map(p => p[0]);
+  const ys = pts.map(p => p[1]);
+  const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+  const w = maxX - minX || 1, h = maxY - minY || 1;
+  const vbW = 420, vbH = 300, pad = 22;
+  const scale = Math.min((vbW - pad * 2) / w, (vbH - pad * 2) / h);
+  const dx = (vbW - w * scale) / 2;
+  const dy = (vbH - h * scale) / 2;
+  const project = p => [dx + (p[0] - minX) * scale, dy + (maxY - p[1]) * scale];
+  const paths = drawRings.map(ring => {
+    const d = ring.map((p, i) => {
+      const [x, y] = project(p);
+      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ') + ' Z';
+    return `<path d="${d}" fill="#dbeafe" fill-opacity="0.45" stroke="${color}" stroke-width="2.2"/>`;
+  }).join('');
+  const cx = (dx + (vbW - dx)) / 2;
+  const cy = vbH / 2;
+  const hexR = 15;
+  const maxCases = Math.max(record.conteo_dengue || 0, 1);
+  const palette = ['#bfdbfe', '#93c5fd', '#60a5fa', '#fbbf24', '#f87171'];
+  const hexPath = (x, y, r) => {
+    const pts = Array.from({ length: 6 }, (_, i) => {
+      const a = Math.PI / 6 + i * Math.PI / 3;
+      return `${(x + Math.cos(a) * r).toFixed(1)},${(y + Math.sin(a) * r).toFixed(1)}`;
+    }).join(' ');
+    return `<polygon points="${pts}"`;
+  };
+  const hexes = [];
+  for (let row = -4; row <= 4; row++) {
+    for (let col = -6; col <= 6; col++) {
+      const x = cx + col * hexR * 1.55 + (Math.abs(row) % 2) * hexR * 0.78;
+      const y = cy + row * hexR * 1.34;
+      const dist = Math.hypot((x - cx) / 150, (y - cy) / 105);
+      if (dist > 1.05) continue;
+      const wave = Math.sin((col + 9) * 1.7 + (row + 5) * 0.9 + (record.conteo_dengue || 0) * 0.01);
+      const intensity = Math.max(0, Math.min(1, (1.05 - dist) * 0.75 + (wave + 1) * 0.16));
+      const idx = Math.min(palette.length - 1, Math.floor(intensity * palette.length));
+      const opacity = 0.35 + intensity * 0.55;
+      hexes.push(`${hexPath(x, y, hexR)} fill="${palette[idx]}" fill-opacity="${opacity.toFixed(2)}" stroke="#ffffff" stroke-width="1"/>`);
+    }
+  }
+  target.innerHTML = `<svg viewBox="0 0 ${vbW} ${vbH}" role="img" aria-label="Mapa hexagonal de ${munName}">
+    <rect width="${vbW}" height="${vbH}" rx="8" fill="#f8fafc"/>
+    <g opacity="0.95">${hexes.join('')}</g>
+    ${paths}
+    <circle cx="${vbW - 94}" cy="38" r="8" fill="${color}"/>
+    <text x="${vbW - 80}" y="42" font-size="10" fill="#334155">${fmt(record.conteo_dengue || 0)} casos</text>
+    <text x="18" y="${vbH - 18}" font-size="12" font-weight="700" fill="#1e3a8a">${munName}</text>
+    <text x="18" y="24" font-size="10" fill="#64748b">Malla hexagonal de referencia territorial</text>
+  </svg><div class="reporte-hex-legend"><span class="reporte-hex-dot" style="background:#bfdbfe"></span>Baja<span class="reporte-hex-dot" style="background:#60a5fa"></span>Media<span class="reporte-hex-dot" style="background:#f87171"></span>Alta</div>`;
+}
+
+function renderAnnualComparisonTable(munData, year) {
+  const table = document.getElementById('rep-annual-table');
+  if (!table) return;
+  const rows = [...munData].sort((a, b) => a.año - b.año);
+  table.innerHTML = `<thead><tr><th>Anio</th><th class="num">Casos</th><th class="num">Incidencia</th><th class="num">Poblacion</th><th class="num">Var. casos</th></tr></thead><tbody>${rows.map((r, i) => {
+    const prev = rows[i - 1];
+    const delta = prev ? r.conteo_dengue - prev.conteo_dengue : null;
+    return `<tr${r.año === year ? ' style="background:#eff6ff"' : ''}><td>${r.año}</td><td class="num">${fmt(r.conteo_dengue)}</td><td class="num">${fmtDec(r.incidencia_dengue)}</td><td class="num">${fmt(r.población || 0)}</td><td class="num">${delta == null ? '-' : (delta >= 0 ? '+' : '') + fmt(delta)}</td></tr>`;
+  }).join('')}</tbody>`;
+}
+
+function renderWeeklyComparisonTable(weekly, channel) {
+  const table = document.getElementById('rep-annual-table');
+  if (!table) return;
+  const rows = (weekly.cases || []).map((cases, i) => ({
+    week: i + 1,
+    cases,
+    incidence: weekly.incidence?.[i] || 0,
+    zone: getWeeklyZone(cases, channel, i),
+    alert: channel.alert?.[i] || 0
+  })).sort((a, b) => b.cases - a.cases).slice(0, 12);
+  const zoneLabel = { epidemica: 'Epidemica', alarma: 'Alarma', seguridad: 'Seguridad', exito: 'Exito' };
+  table.innerHTML = `<thead><tr><th>Semana</th><th class="num">Casos est.</th><th class="num">Incidencia</th><th class="num">Umbral alto</th><th>Zona</th></tr></thead><tbody>${rows.map(r => {
+    const bg = r.zone === 'epidemica' ? ' style="background:#fef2f2"' : r.zone === 'alarma' ? ' style="background:#fffbeb"' : '';
+    return `<tr${bg}><td>Semana ${r.week}</td><td class="num">${fmt(r.cases)}</td><td class="num">${fmtDec(r.incidence)}</td><td class="num">${fmt(Math.round(r.alert))}</td><td>${zoneLabel[r.zone]}</td></tr>`;
+  }).join('')}</tbody>`;
+}
+
+function renderTopMunicipiosTable(year) {
+  const table = document.getElementById('rep-top-table');
+  if (!table) return;
+  const top = getTopMunByYear(year, 'conteo_dengue', 10, true);
+  table.innerHTML = `<thead><tr><th>#</th><th>Municipio</th><th class="num">Casos</th><th class="num">Inc.</th></tr></thead><tbody>${top.map((r, i) => `<tr><td>${i + 1}</td><td>${r.MPIO_CNMBR}</td><td class="num">${fmt(r.conteo_dengue)}</td><td class="num">${fmtDec(r.incidencia_dengue)}</td></tr>`).join('')}</tbody>`;
+}
+
+function buildPyramidDataset(code, totalCases) {
+  let raw = typeof getDemoPiramide === 'function' ? getDemoPiramide(code) : [];
+  if (!raw.length && typeof DEMO_PIRAMIDE !== 'undefined') {
+    raw = DEMO_PIRAMIDE[code] || DEMO_PIRAMIDE[String(code)] || DEMO_PIRAMIDE['VALLE'] || [];
+  }
+  if (!raw.length) {
+    const total = getDemoTotal(code)?.poblacion_total || 100000;
+    const groups = ['00-04', '05-09', '10-14', '15-19', '20-24', '25-29', '30-34', '35-39', '40-44', '45-49', '50-54', '55-59', '60+'];
+    const weights = [7, 8, 8, 8, 8, 8, 7, 7, 7, 7, 6, 5, 14];
+    const wTotal = weights.reduce((s, v) => s + v, 0);
+    return groups.map((group, i) => {
+      const pop = Math.round(total * weights[i] / wTotal);
+      const male = Math.round(pop * 0.49);
+      const female = pop - male;
+      return { group, order: i + 1, male, female, total: pop, cases: totalCases > 0 ? Math.round(totalCases * weights[i] / wTotal) : 0 };
+    });
+  }
+  const groups = [...new Set(raw.map(r => r.grupo_quinquenal))];
+  const popTotal = raw.reduce((s, r) => s + r.cantidad, 0) || 1;
+  return groups.map(group => {
+    const rows = raw.filter(r => r.grupo_quinquenal === group);
+    const m = rows.find(r => r.sexo === 'M')?.cantidad || 0;
+    const f = rows.find(r => r.sexo === 'F')?.cantidad || 0;
+    const total = m + f;
+    return { group, order: rows[0]?.orden || 0, male: m, female: f, cases: 0, total };
+  }).sort((a, b) => a.order - b.order).map(d => ({ ...d, cases: totalCases > 0 ? Math.round(totalCases * (d.total / popTotal)) : 0 }));
+}
+
+function renderReporte() {
+  const sel = document.getElementById('reporte-mun-select');
+  if (sel && sel.options.length === 0) {
+    MUN_CATALOG.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.code;
+      opt.textContent = m.name;
+      if (m.code === SELECTED_MUN) opt.selected = true;
+      sel.appendChild(opt);
+    });
+    sel.addEventListener('change', e => {
+      SELECTED_MUN = e.target.value;
+      renderReporte();
+    });
+  }
+  if (sel) sel.value = SELECTED_MUN;
+
+  const munName = MUN_CATALOG.find(m => m.code === SELECTED_MUN)?.name || SELECTED_MUN;
+  const munData = getByMun(SELECTED_MUN);
+  const stats = getReportStats(munData, SELECTED_YEAR);
+  const currentRecord = stats.current;
+  const totalPop = getDemoTotal(SELECTED_MUN)?.poblacion_total || currentRecord.población || 1;
+  const ciclos = getDemoCiclos(SELECTED_MUN) || [];
+  const totalCases = currentRecord.conteo_dengue || 0;
+  const burden = estimateChildBurden(ciclos, totalPop, totalCases);
+  const risk = getReportRisk(currentRecord.incidencia_dengue || 0);
+
+  reportSetText('rep-mun-val', munName);
+  reportSetText('rep-year-val', SELECTED_YEAR);
+  reportSetText('rep-date-val', new Date().toLocaleDateString('es-CO'));
+  reportSetText('rep-page2-mun', munName);
+  reportSetText('rep-page2-year', SELECTED_YEAR);
+  reportSetText('rep-page3-mun', munName);
+  reportSetText('rep-kpi-total', fmt(totalCases));
+  reportSetText('rep-kpi-inc', fmtDec(currentRecord.incidencia_dengue || 0));
+  reportSetText('rep-kpi-pob', fmt(totalPop));
+  reportSetText('rep-kpi-infantil', `${fmt(burden.childCases)} (${burden.childPct}%)`);
+  reportSetText('rep-risk-note', `Carga ${risk.label}; incidencia ${fmtDec(currentRecord.incidencia_dengue || 0)} x 100,000 habitantes.`);
+  reportSetText('rep-trend-note', stats.deltaPct == null ? 'Sin comparacion inmediata disponible.' : `${stats.deltaPct >= 0 ? 'Aumento' : 'Reduccion'} de ${fmtDec(Math.abs(stats.deltaPct))}% frente a ${SELECTED_YEAR - 1}.`);
+  reportSetText('rep-action-note', risk.action.charAt(0).toUpperCase() + risk.action.slice(1) + '.');
+
+  const narrativeEl = document.getElementById('reporte-dynamic-text');
+  if (narrativeEl) narrativeEl.innerHTML = generateNarrative(munName, SELECTED_YEAR, totalCases, currentRecord.incidencia_dengue || 0, totalPop, burden.childCases, burden.childPct, stats);
+  const weekly = getWeeklySeries(SELECTED_MUN, SELECTED_YEAR);
+  const weeklyChannel = calculateEndemicChannel(SELECTED_MUN, SELECTED_YEAR, 'conteo_dengue');
+  const endemicEl = document.getElementById('rep-endemic-text');
+  if (endemicEl) endemicEl.innerHTML = generateWeeklyEndemicNarrative(munName, SELECTED_YEAR, weekly, weeklyChannel);
+
+  renderReportMap(SELECTED_MUN, munName, currentRecord);
+  renderWeeklyComparisonTable(weekly, weeklyChannel);
+  renderTopMunicipiosTable(SELECTED_YEAR);
+
+  const reportCharts = ['repHist', 'repDemo', 'repEndemic', 'repPyramid'];
+  reportCharts.forEach(k => { if (charts[k]) { charts[k].destroy(); delete charts[k]; } });
+
+  const lightOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#334155', font: { family: 'Space Grotesk', size: 10 } } }, tooltip: { backgroundColor: '#0f172a', titleColor: '#f8fafc', bodyColor: '#cbd5e1' } },
+    scales: {
+      x: { grid: { color: '#e2e8f0' }, ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 9 } } },
+      y: { grid: { color: '#e2e8f0' }, ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 9 }, callback: v => fmt(Math.abs(v)) } }
+    }
+  };
+
+  const ctxEndemic = document.getElementById('rep-chart-endemic');
+  if (ctxEndemic) {
+    const weekLabels = Array.from({ length: 52 }, (_, i) => `S${i + 1}`);
+    charts['repEndemic'] = new Chart(ctxEndemic, {
+      data: { labels: weekLabels, datasets: [
+        { type: 'line', label: 'Exito', data: weeklyChannel.success, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.10)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: .25 },
+        { type: 'line', label: 'Seguridad', data: weeklyChannel.safety, borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,.08)', borderWidth: 1.5, pointRadius: 0, fill: false, tension: .25 },
+        { type: 'line', label: 'Alarma', data: weeklyChannel.alert, borderColor: '#f87171', borderWidth: 2, pointRadius: 0, borderDash: [4, 4], tension: .25 },
+        { type: 'bar', label: 'Casos semana', data: weeklyChannel.current, backgroundColor: weeklyChannel.current.map((v, i) => getWeeklyZone(v, weeklyChannel, i) === 'epidemica' ? '#1e3a8a' : '#93c5fd'), borderRadius: 2 }
+      ] },
+      options: {
+        ...lightOpts,
+        scales: {
+          ...lightOpts.scales,
+          x: { ...lightOpts.scales.x, ticks: { ...lightOpts.scales.x.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 13 } }
+        }
+      }
+    });
+  }
+
+  const ctxHist = document.getElementById('rep-chart-historical');
+  if (ctxHist) {
+    const weekLabels = Array.from({ length: 52 }, (_, i) => `S${i + 1}`);
+    charts['repHist'] = new Chart(ctxHist, {
+      data: { labels: weekLabels, datasets: [
+        { type: 'bar', label: 'Casos', data: weekly.cases, backgroundColor: 'rgba(59,130,246,.65)', borderColor: '#3b82f6', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
+        { type: 'line', label: 'Incidencia semanal', data: weekly.incidence, borderColor: '#f87171', borderWidth: 2, pointRadius: 0, tension: .35, yAxisID: 'y1' }
+      ] },
+      options: {
+        ...lightOpts,
+        scales: {
+          ...lightOpts.scales,
+          x: { ...lightOpts.scales.x, ticks: { ...lightOpts.scales.x.ticks, maxRotation: 0, autoSkip: true, maxTicksLimit: 13 } },
+          y1: { type: 'linear', position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#475569', font: { family: 'JetBrains Mono', size: 9 } } }
+        }
+      }
+    });
+  }
+
+  const ctxPyr = document.getElementById('rep-chart-pyramid');
+  if (ctxPyr) {
+    const pyr = buildPyramidDataset(SELECTED_MUN, totalCases);
+    const maxPop = Math.max(...pyr.map(d => Math.max(d.male, d.female)), 1);
+    const maxCases = Math.max(...pyr.map(d => d.cases), 1);
+    const caseScale = (maxPop * 0.35) / maxCases;
+    charts['repPyramid'] = new Chart(ctxPyr, {
+      type: 'bar',
+      data: { labels: pyr.map(d => d.group.replace('DE ', '')), datasets: [
+        { label: 'Hombres', data: pyr.map(d => -d.male), backgroundColor: '#60a5fa' },
+        { label: 'Mujeres', data: pyr.map(d => d.female), backgroundColor: '#f472b6' },
+        { label: 'Casos estimados', data: pyr.map(d => d.cases * caseScale), backgroundColor: '#111827' }
+      ] },
+      options: {
+        ...lightOpts,
+        indexAxis: 'y',
+        plugins: {
+          ...lightOpts.plugins,
+          tooltip: {
+            ...lightOpts.plugins.tooltip,
+            callbacks: {
+              label: context => {
+                const idx = context.dataIndex;
+                if (context.datasetIndex === 2) return ` Casos estimados: ${fmt(pyr[idx].cases)}`;
+                return ` ${context.dataset.label}: ${fmt(Math.abs(context.parsed.x))}`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: { ...lightOpts.scales.x, stacked: false, ticks: { ...lightOpts.scales.x.ticks, callback: v => fmt(Math.abs(v)) } },
+          y: { ...lightOpts.scales.y, stacked: false }
+        }
+      }
+    });
+  }
+
+  const ctxDemo = document.getElementById('rep-chart-demographics');
+  if (ctxDemo) {
+    const sortedCycles = [...ciclos].sort((a, b) => a.id_ciclo - b.id_ciclo);
+    const colors = ['#22d3ee', '#34d399', '#fbbf24', '#fb923c', '#3b82f6', '#a78bfa'];
+    charts['repDemo'] = new Chart(ctxDemo, {
+      type: 'bar',
+      data: { labels: sortedCycles.map(c => c.ciclo_nombre), datasets: [{ data: sortedCycles.map(c => c.cantidad), backgroundColor: colors.map(c => c + 'bb'), borderColor: colors, borderWidth: 1, borderRadius: 3 }] },
+      options: { ...lightOpts, plugins: { ...lightOpts.plugins, legend: { display: false } } }
+    });
+  }
+
+  const printBtn = document.getElementById('reporte-print-btn');
+  if (printBtn) {
+    printBtn.replaceWith(printBtn.cloneNode(true));
+    document.getElementById('reporte-print-btn').addEventListener('click', () => window.print());
+  }
+}
 function buildMockGeoJSON() {
   const SIDES = 8;
   const features = (typeof MUN_CATALOG !== 'undefined' ? MUN_CATALOG : []).map(mun => {
