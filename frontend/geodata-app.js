@@ -2876,7 +2876,11 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('lang-btn')?.addEventListener('click', toggleLang);
 
-  navigate('dashboard');
+  // Deep link: file.html#geovisor abre directo en esa sección; sin hash o con
+  // uno desconocido, cae al dashboard (mismo patrón que georiesgo.js).
+  const hashSection = (location.hash || '').replace('#', '');
+  const validSection = hashSection && document.getElementById('s-' + hashSection);
+  navigate(validSection ? hashSection : 'dashboard');
   // Init map after small delay so section is visible
   setTimeout(initMap, 300);
 });
