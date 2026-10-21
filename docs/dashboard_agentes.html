@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Observatorio GeoSalud — Arquitectura ADK</title>
+<style>
+:root {
+  --bg:  #0f172a; --bg2: #1e293b; --bg3: #0c1528;
+  --bdr: #334155; --bdr2: #475569;
+  --txt: #f1f5f9; --txt2: #94a3b8; --txt3: #64748b;
+  --blue: #3b82f6; --blue-l: #93c5fd;
+  --ind:  #6366f1; --ind-l:  #a5b4fc;
+  --grn:  #10b981; --grn-l:  #6ee7b7;
+  --org:  #f59e0b; --org-l:  #fbbf24;
+  --pnk:  #ec4899; --pnk-l:  #f472b6;
+  --cyn:  #06b6d4; --cyn-l:  #22d3ee;
+  --pur:  #a855f7; --pur-l:  #c084fc;
+  --vlt:  #7c3aed;
+}
+*{ box-sizing:border-box; margin:0; padding:0; }
+body{ background:var(--bg); color:var(--txt); font-family:'Segoe UI',system-ui,Arial,sans-serif; }
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#1e3a5f 0%,#1e1b4b 50%,#1a0a2e 100%);
+  padding:18px 32px 16px; border-bottom:1px solid var(--bdr);
+}
+header h1{ font-size:19px; font-weight:700; margin-bottom:4px; }
+header p{ font-size:11px; color:var(--txt2); }
+
+/* ── TABS ── */
+.tabs{ display:flex; gap:4px; padding:14px 32px; background:var(--bg3); border-bottom:1px solid var(--bdr); }
+.tab-btn{
+  padding:7px 18px; border-radius:6px; border:1px solid var(--bdr);
+  background:transparent; color:var(--txt2); cursor:pointer; font-size:12.5px;
+  font-weight:500; transition:all .2s;
+}
+.tab-btn:hover{ color:var(--txt); border-color:var(--bdr2); }
+.tab-btn.on{ background:var(--ind); border-color:var(--ind); color:#fff; }
+
+/* ── LAYOUT ── */
+.content{ padding:24px 32px; }
+.panel{ display:none; }
+.panel.on{ display:block; }
+
+/* ══════ TAB 1 — FLUJO ══════ */
+.flow-wrap{ display:grid; grid-template-columns:1fr 310px; gap:20px; align-items:start; }
+.flow-col{ display:flex; flex-direction:column; align-items:center; gap:0; }
+
+.node{
+  border-radius:8px; padding:12px 16px; width:100%; cursor:pointer;
+  border:2px solid transparent; transition:all .18s; position:relative;
+}
+.node:hover{ filter:brightness(1.12); transform:translateY(-1px); }
+.node.sel{ outline:2px solid rgba(255,255,255,.7); outline-offset:3px; }
+.node-fe  { background:#172554; border-color:var(--blue); max-width:680px; }
+.node-api { background:#111827; border-color:var(--ind);  max-width:680px; }
+.node-orc { background:#022c22; border-color:var(--grn);  max-width:480px; }
+.node-title{ font-weight:700; font-size:12.5px; margin-bottom:3px; }
+.node-sub  { font-size:10.5px; color:var(--txt2); }
+
+/* agents row */
+.agents{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; width:100%; max-width:680px; }
+.anode{
+  border-radius:8px; padding:11px 10px; border:2px solid transparent;
+  cursor:pointer; transition:all .18s; min-height:155px;
+}
+.anode:hover{ filter:brightness(1.12); transform:translateY(-2px); }
+.anode.sel{ outline:2px solid rgba(255,255,255,.7); outline-offset:3px; }
+.anode-ep{ background:#1c1007; border-color:var(--org); }
+.anode-vz{ background:#1a0510; border-color:var(--pnk); }
+.anode-ui{ background:#021e26; border-color:var(--cyn); }
+.anode-pa{ background:#12002e; border-color:var(--pur); border-width:2.5px; }
+.aname{ font-weight:700; font-size:11px; margin-bottom:5px; }
+.atools{ font-size:9px; color:var(--txt2); line-height:1.75; }
+.badge-new{
+  display:inline-block; background:var(--vlt); color:#fff;
+  font-size:7px; font-weight:700; padding:2px 5px; border-radius:3px; margin-bottom:5px;
+}
+
+/* data row */
+.drow{ display:grid; grid-template-columns:1fr 1fr; gap:8px; width:100%; max-width:680px; }
+.dnode{
+  border-radius:8px; padding:9px 13px; border:1.5px solid transparent;
+  cursor:pointer; transition:filter .18s;
+}
+.dnode:hover{ filter:brightness(1.1); }
+.dnode.sel{ outline:2px solid rgba(255,255,255,.6); outline-offset:2px; }
+.dnode-pg{ background:#1a0533; border-color:var(--pur); }
+.dnode-mm{ background:#061628; border-color:var(--cyn); }
+
+/* arrows */
+.arr{
+  display:flex; justify-content:center; align-items:center;
+  height:28px; width:100%; max-width:680px; position:relative;
+}
+.arr::before{
+  content:''; position:absolute; left:50%; top:2px;
+  width:2px; height:16px; background:var(--bdr);
+}
+.arr::after{
+  content:'▼'; position:absolute; left:calc(50% - 5px);
+  bottom:2px; font-size:9px; color:var(--bdr2);
+}
+.arr-lbl{
+  background:var(--bg); padding:0 6px; z-index:1;
+  font-size:9.5px; color:var(--txt3);
+}
+
+/* pill row inside fastapi */
+.pills{ display:flex; gap:5px; flex-wrap:wrap; margin-top:7px; }
+.pill{
+  font-size:9.5px; padding:2px 7px; border-radius:4px; border:1px solid;
+}
+.pill-i{ border-color:var(--ind); color:var(--ind-l); }
+.pill-c{ border-color:var(--cyn); color:var(--cyn-l); }
+
+/* detail panel */
+.dpanel{
+  background:var(--bg3); border:1px solid var(--bdr); border-radius:10px;
+  padding:18px; position:sticky; top:20px; min-height:280px; transition:all .25s;
+}
+.dpanel h3{ font-size:13.5px; font-weight:700; margin-bottom:7px; }
+.dpanel .dcls{
+  font-size:9.5px; font-family:monospace; color:var(--txt3); margin-bottom:11px;
+  padding:3px 8px; background:var(--bg); border-radius:4px; display:inline-block;
+}
+.dpanel .ddesc{ font-size:11.5px; color:var(--txt2); line-height:1.7; margin-bottom:12px; }
+.ditem{
+  font-size:10.5px; font-family:monospace; padding:5px 9px; background:var(--bg);
+  border-radius:4px; border-left:3px solid var(--bdr); color:var(--txt2);
+  margin-bottom:4px;
+}
+.ditem.hi{ border-left-color:var(--cyn); color:var(--cyn-l); }
+.dph{ display:flex; flex-direction:column; align-items:center; justify-content:center;
+       height:200px; color:var(--txt3); font-size:12px; gap:8px; text-align:center; }
+.dph .ico{ font-size:30px; }
+
+/* ══════ TAB 2 — ADK ══════ */
+.adk-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+.adk-card{ background:var(--bg3); border:1px solid var(--bdr); border-radius:10px; overflow:hidden; }
+.adk-hdr{
+  padding:14px 18px; cursor:pointer; display:flex; align-items:center; gap:11px;
+  user-select:none; transition:background .15s;
+}
+.adk-hdr:hover{ background:rgba(255,255,255,.03); }
+.adk-ico{ width:34px; height:34px; border-radius:8px; display:flex; align-items:center;
+           justify-content:center; font-size:17px; flex-shrink:0; }
+.adk-ttl{ font-weight:700; font-size:12.5px; }
+.adk-cls{ font-size:9.5px; font-family:monospace; color:var(--txt3); margin-top:2px; }
+.adk-chev{ margin-left:auto; color:var(--txt3); transition:transform .2s; font-size:12px; }
+.adk-card.open .adk-chev{ transform:rotate(180deg); }
+.adk-body{ padding:0 18px; max-height:0; overflow:hidden; transition:max-height .3s ease, padding .3s; }
+.adk-card.open .adk-body{ max-height:600px; padding:0 18px 18px; }
+.param{
+  display:inline-block; font-size:9.5px; font-family:monospace; padding:2px 7px;
+  background:var(--bg); border-radius:4px; margin:2px; color:var(--org-l);
+}
+.benefit{
+  display:flex; align-items:flex-start; gap:8px; padding:8px 11px;
+  background:var(--bg); border-radius:6px; margin-top:9px;
+  font-size:11px; color:var(--txt2); line-height:1.65;
+}
+.code-block{
+  font-family:monospace; background:var(--bg); padding:11px 13px; border-radius:6px;
+  font-size:10.5px; color:var(--ind-l); line-height:1.85; margin-top:10px;
+}
+.mem-cycle{
+  display:flex; align-items:center; gap:7px; margin-top:11px; padding:11px;
+  background:var(--bg); border-radius:7px; flex-wrap:wrap;
+}
+.mstep{
+  padding:5px 10px; border-radius:6px; font-size:10.5px;
+  text-align:center; border:1px solid var(--bdr); line-height:1.4;
+}
+.marrow{ color:var(--txt3); font-size:13px; }
+
+/* timing bars */
+.tvis{ margin-top:11px; padding:11px; background:var(--bg); border-radius:7px; }
+.trow{ display:flex; align-items:center; gap:9px; margin-bottom:7px; }
+.tlbl{ font-size:9.5px; color:var(--txt3); width:82px; flex-shrink:0; }
+.tbars{ display:flex; gap:3px; flex:1; }
+.tbar{
+  height:13px; border-radius:3px; display:flex; align-items:center;
+  padding-left:7px; font-size:7.5px; color:#fff; font-weight:600;
+}
+.bar-e{ background:var(--org); opacity:.85; }
+.bar-v{ background:var(--pnk); opacity:.85; }
+
+/* ══════ TAB 3 — EJEMPLOS ══════ */
+.ex-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:14px; }
+.ex-card{
+  background:var(--bg3); border:2px solid var(--bdr); border-radius:10px;
+  padding:18px; position:relative;
+}
+.ex-ttl{ font-size:12.5px; font-weight:700; margin-bottom:9px; }
+.qbox{
+  background:var(--bg); border-radius:6px; padding:10px 13px;
+  font-size:12.5px; font-style:italic; line-height:1.5; margin-bottom:14px;
+  border-left:3px solid var(--bdr);
+}
+.steps{ display:flex; flex-direction:column; gap:7px; }
+.step{
+  display:flex; align-items:flex-start; gap:9px; font-size:11px; color:var(--txt2);
+  padding:8px 10px; border-radius:6px; background:var(--bg); border-left:2px solid var(--bdr);
+  opacity:0; transform:translateX(-8px); transition:opacity .3s, transform .3s;
+}
+.step.show{ opacity:1; transform:translateX(0); }
+.sico{ font-size:13px; flex-shrink:0; }
+.stxt{ line-height:1.5; }
+.scode{
+  font-family:monospace; font-size:9.5px; padding:2px 6px;
+  background:var(--bg3); border-radius:3px; color:var(--org-l);
+  display:block; margin-top:3px;
+}
+.rbox{
+  margin-top:11px; padding:9px 12px; border-radius:6px;
+  font-size:11px; line-height:1.6; border:1px solid var(--bdr);
+  opacity:0; transform:translateY(5px); transition:opacity .35s .45s, transform .35s .45s;
+}
+.rbox.show{ opacity:1; transform:translateY(0); }
+.play{
+  position:absolute; bottom:12px; right:12px; padding:4px 12px;
+  border-radius:5px; border:1px solid var(--bdr); background:transparent;
+  color:var(--txt2); cursor:pointer; font-size:11px; transition:all .2s;
+}
+.play:hover{ background:var(--bg); color:var(--txt); }
+.play.on{ color:var(--grn-l); border-color:var(--grn); }
+
+/* track anim (parallel) */
+.ttrack{ display:flex; align-items:center; gap:7px; margin-bottom:5px; }
+.ttlbl{ font-size:9.5px; color:var(--txt3); width:90px; flex-shrink:0; }
+.tbwrap{ flex:1; background:var(--bg3); border-radius:4px; height:14px; overflow:hidden; }
+.tbar2{
+  height:100%; border-radius:4px; width:0%;
+  transition:width 1.4s ease;
+  display:flex; align-items:center; padding-left:7px;
+  font-size:8.5px; color:#fff; font-weight:600;
+}
+.tbar2.go{ width:100%; }
+
+/* misc */
+.stitle{ font-size:15px; font-weight:700; margin-bottom:5px; }
+.ssub{ font-size:11.5px; color:var(--txt2); margin-bottom:18px; }
+.tag-new{ display:inline-block; padding:1px 7px; border-radius:3px; font-size:9px;
+           font-weight:700; background:var(--vlt); color:#fff; margin-left:7px; vertical-align:middle; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <h1>🔬 Observatorio GeoSalud — Sistema Multi-Agente con ADK</h1>
+  <p>Vigilancia epidemiológica de dengue · Valle del Cauca · 42 municipios · 2019–2026 · Concurso IA con ADK 2026</p>
+</header>
+
+<!-- ── TABS ── -->
+<nav class="tabs">
+  <button class="tab-btn on"  onclick="tab('flujo',this)">🗺️  Flujo de Agentes</button>
+  <button class="tab-btn"     onclick="tab('adk',this)">⚡  Componentes ADK</button>
+  <button class="tab-btn"     onclick="tab('ej',this)">💬  Ejemplos de Enrutamiento</button>
+</nav>
+
+<div class="content">
+
+<!-- ══════════════════════════════════════════════
+     TAB 1 — FLUJO
+════════════════════════════════════════════════ -->
+<div id="p-flujo" class="panel on">
+  <div class="flow-wrap">
+
+    <!-- DIAGRAM -->
+    <div class="flow-col">
+
+      <!-- Frontend -->
+      <div class="node node-fe" id="n-fe" onclick="detail('fe')">
+        <div class="node-title" style="color:var(--blue-l)">🖥️  FRONTEND — HTML · JavaScript · Leaflet.js</div>
+        <div class="node-sub">Dashboard · Mapa Coroplético · Geovisor · Panel Tendencias · Chat UI</div>
+      </div>
+
+      <div class="arr"><span class="arr-lbl">POST /chat  (HTTP)</span></div>
+
+      <!-- FastAPI -->
+      <div class="node node-api" id="n-api" onclick="detail('api')">
+        <div class="node-title" style="color:var(--ind-l)">⚙️  FastAPI — server.py · Puerto 8080</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">
+          <div style="border:1px dashed #4338ca;border-radius:6px;padding:8px;">
+            <div style="font-size:10px;font-weight:600;color:#c7d2fe;margin-bottom:3px;">Capa Local (sin Gemini)</div>
+            <div style="font-size:9px;color:var(--txt2);">Fuzzy · Regex · Action chaining<br>Sin latencia LLM · Fallback cuota</div>
+          </div>
+          <div style="border:1px dashed #4338ca;border-radius:6px;padding:8px;">
+            <div style="font-size:10px;font-weight:600;color:#c7d2fe;margin-bottom:4px;">ADK App — adk_app.run_async()</div>
+            <div class="pills">
+              <span class="pill pill-i">EventsCompaction</span>
+              <span class="pill pill-i">ContextCache</span>
+              <span class="pill pill-c">MemoryService</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="arr"><span class="arr-lbl">adk_app.run_async()</span></div>
+
+      <!-- Orchestrator -->
+      <div class="node node-orc" id="n-orc" onclick="detail('orc')" style="max-width:480px;align-self:center;">
+        <div class="node-title" style="color:var(--grn-l)">🧠  observatorio_orchestrator · Gemini 2.5 Flash</div>
+        <div class="node-sub">root_agent · Tabla de enrutamiento LLM · Responde saludos directamente</div>
+      </div>
+
+      <!-- branch lines -->
+      <div style="height:24px;width:100%;max-width:680px;position:relative;flex-shrink:0;">
+        <svg width="100%" height="24" style="position:absolute;overflow:visible;">
+          <line x1="50%" y1="0" x2="50%" y2="12" stroke="#334155" stroke-width="2"/>
+          <line x1="13%" y1="12" x2="87%" y2="12" stroke="#334155" stroke-width="2"/>
+          <line x1="13%" y1="12" x2="13%" y2="24" stroke="#334155" stroke-width="2"/>
+          <line x1="38%" y1="12" x2="38%" y2="24" stroke="#334155" stroke-width="2"/>
+          <line x1="63%" y1="12" x2="63%" y2="24" stroke="#334155" stroke-width="2"/>
+          <line x1="87%" y1="12" x2="87%" y2="24" stroke="#a855f7" stroke-width="2.5" stroke-dasharray="5,2"/>
+        </svg>
+      </div>
+
+      <!-- 4 agents -->
+      <div class="agents">
+
+        <div class="anode anode-ep" id="n-ep" onclick="detail('ep')">
+          <div class="aname" style="color:var(--org-l)">📊 epidemio_agent</div>
+          <div class="atools">
+            Consultas numéricas SQL<br>
+            • listar_municipios<br>
+            • casos_por_municipio<br>
+            • top_municipios<br>
+            • serie_temporal<br>
+            • resumen_anio<br>
+            • poblacion ×3<br>
+            <span style="color:var(--cyn-l)">🧠 preload_memory</span>
+          </div>
+        </div>
+
+        <div class="anode anode-vz" id="n-vz" onclick="detail('vz')">
+          <div class="aname" style="color:var(--pnk-l)">📈 viz_agent</div>
+          <div class="atools">
+            Gráficas PNG · Artifacts<br>
+            • grafica_casos_anio<br>
+            • grafica_top_munic.<br>
+            • grafica_serie<br>
+            • grafica_series<br>
+            • grafica_facet<br><br>
+            Caché determinista<br>
+            nombre=hash(params)
+          </div>
+        </div>
+
+        <div class="anode anode-ui" id="n-ui" onclick="detail('ui')">
+          <div class="aname" style="color:var(--cyn-l)">🗺️ ui_agent</div>
+          <div class="atools">
+            Acciones de UI (JSON)<br>
+            • mapa_coropletico<br>
+            • mostrar_geovisor<br>
+            • abrir_modulo<br><br>
+            Panel · Indicadores<br>
+            Tendencias · Geovisor<br>
+            Demografía<br>
+            → JSON al frontend
+          </div>
+        </div>
+
+        <div class="anode anode-pa" id="n-pa" onclick="detail('pa')">
+          <div class="badge-new">✦ NUEVO ADK</div>
+          <div class="aname" style="color:var(--pur-l)">⚡ Parallel<br>Agent</div>
+          <div class="atools" style="color:#a78bfa;">
+            Ejecuta en paralelo:<br><br>
+            <span style="color:var(--org-l)">▶ epidemio</span><br>
+            <span style="color:var(--pnk-l)">▶ viz</span><br><br>
+            Sin esperar al otro<br>
+            <span style="color:var(--pur-l);font-weight:600;">~50% latencia</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- arrows to data -->
+      <div style="height:20px;width:100%;max-width:680px;position:relative;flex-shrink:0;">
+        <svg width="100%" height="20" style="position:absolute;overflow:visible;">
+          <line x1="13%" y1="0" x2="13%" y2="10" stroke="#334155" stroke-width="1.5"/>
+          <line x1="38%" y1="0" x2="38%" y2="10" stroke="#334155" stroke-width="1.5"/>
+          <line x1="13%" y1="10" x2="38%" y2="10" stroke="#334155" stroke-width="1.5"/>
+          <line x1="25.5%" y1="10" x2="25.5%" y2="20" stroke="#334155" stroke-width="1.5"/>
+          <polygon points="calc(25.5% - 5px),17 calc(25.5% + 5px),17 25.5%,20" fill="#334155"/>
+        </svg>
+      </div>
+
+      <!-- Data layer -->
+      <div class="drow">
+        <div class="dnode dnode-pg" id="n-pg" onclick="detail('pg')">
+          <div style="font-size:11px;font-weight:700;color:var(--pur-l);margin-bottom:3px;">🐘 PostgreSQL · PostGIS</div>
+          <div style="font-size:9.5px;color:#e9d5ff;">terrarIA.valle_mun</div>
+          <div style="font-size:9px;color:var(--txt2);margin-top:3px;">42 municipios · 2019–2026 · +166k filas</div>
+        </div>
+        <div class="dnode dnode-mm" id="n-mm" onclick="detail('mm')">
+          <div style="font-size:11px;font-weight:700;color:var(--cyn-l);margin-bottom:3px;">🧠 InMemoryMemoryService</div>
+          <div style="font-size:9.5px;color:var(--cyn-l);">Preferencias cross-session</div>
+          <div style="font-size:9px;color:var(--txt2);margin-top:3px;">municipio · métrica · historial entre sesiones</div>
+        </div>
+      </div>
+
+    </div>
+    <!-- END DIAGRAM -->
+
+    <!-- DETAIL PANEL -->
+    <div class="dpanel" id="dpanel">
+      <div class="dph">
+        <div class="ico">👆</div>
+        <div>Haz clic en cualquier nodo<br>para ver sus detalles</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB 2 — ADK COMPONENTS
+════════════════════════════════════════════════ -->
+<div id="p-adk" class="panel">
+  <div class="stitle">Componentes ADK Implementados</div>
+  <div class="ssub">Cada componente extiende el patrón <code>Runner</code> básico. Haz clic para expandir y ver detalles.</div>
+
+  <div class="adk-grid">
+
+    <!-- ① App -->
+    <div class="adk-card" onclick="toggleAdk(this)">
+      <div class="adk-hdr">
+        <div class="adk-ico" style="background:#1e1b4b;color:var(--ind-l);">🏗️</div>
+        <div>
+          <div class="adk-ttl" style="color:var(--ind-l);">① App  — reemplaza Runner</div>
+          <div class="adk-cls">google.adk.apps.app.App</div>
+        </div>
+        <div class="adk-chev">▼</div>
+      </div>
+      <div class="adk-body">
+        <div class="benefit"><span>💡</span><span>Patrón oficial de ADK que habilita compactación, caché de contexto y memoria en <strong>una sola instancia</strong>. Con <code>Runner</code> básico ninguna de estas funciones está disponible.</span></div>
+        <div class="code-block">
+          adk_app = App(<br>
+          &nbsp;&nbsp;name = "observatorio_geosalud",<br>
+          &nbsp;&nbsp;root_agent = root_agent,<br>
+          &nbsp;&nbsp;session_service = InMemorySessionService(),<br>
+          &nbsp;&nbsp;artifact_service = InMemoryArtifactService(),<br>
+          &nbsp;&nbsp;events_compaction_config = EventsCompactionConfig(...),<br>
+          &nbsp;&nbsp;context_cache_config = ContextCacheConfig(...),<br>
+          &nbsp;&nbsp;memory_service = InMemoryMemoryService(),<br>
+          )
+        </div>
+      </div>
+    </div>
+
+    <!-- ② EventsCompaction -->
+    <div class="adk-card" onclick="toggleAdk(this)">
+      <div class="adk-hdr">
+        <div class="adk-ico" style="background:#1e1b4b;color:var(--ind-l);">🗜️</div>
+        <div>
+          <div class="adk-ttl" style="color:var(--ind-l);">② EventsCompactionConfig</div>
+          <div class="adk-cls">google.adk.apps.app.EventsCompactionConfig</div>
+        </div>
+        <div class="adk-chev">▼</div>
+      </div>
+      <div class="adk-body">
+        <div style="margin-bottom:9px;">
+          <span class="param">token_threshold = 16 000</span>
+          <span class="param">event_retention_size = 4</span>
+          <span class="param">compaction_interval = 15</span>
+          <span class="param">overlap_size = 2</span>
+        </div>
+        <div class="benefit"><span>💡</span><span>Comprime automáticamente el historial cuando supera <strong>16 000 tokens</strong>. Conserva siempre los últimos 4 eventos sin comprimir para mantener coherencia.</span></div>
+        <div style="margin-top:11px;font-size:11px;color:var(--txt2);">
+          <div style="margin-bottom:6px;font-weight:600;color:var(--txt3);">Impacto en sesión larga:</div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:11px;">
+            <span style="color:#ef4444;">Sin compactar → ~40k tokens/turno</span>
+            <span style="color:var(--bdr2);">→</span>
+            <span style="color:var(--cyn-l);">Compactado → ~8k tokens/turno</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ③ ContextCache -->
+    <div class="adk-card" onclick="toggleAdk(this)">
+      <div class="adk-hdr">
+        <div class="adk-ico" style="background:#1e1b4b;color:var(--ind-l);">⚡</div>
+        <div>
+          <div class="adk-ttl" style="color:var(--ind-l);">③ ContextCacheConfig</div>
+          <div class="adk-cls">google.adk.agents.context_cache_config.ContextCacheConfig</div>
+        </div>
+        <div class="adk-chev">▼</div>
+      </div>
+      <div class="adk-body">
+        <div style="margin-bottom:9px;">
+          <span class="param">min_tokens = 2 048</span>
+          <span class="param">ttl_seconds = 600</span>
+          <span class="param">cache_intervals = 10</span>
+        </div>
+        <div class="benefit"><span>💡</span><span>Cachea los <strong>system prompts estáticos</strong> con Gemini 2.0+. Los prompts del orquestador y subagentes superan 3k tokens — se envían una vez y se referencian por hash en los siguientes 600 s.</span></div>
+        <div style="margin-top:10px;font-size:11px;color:var(--txt2);">
+          Los prompts no cambian entre turnos → cada turno ahorra el costo de procesar ~3-5k tokens de instrucciones repetidas.
+        </div>
+      </div>
+    </div>
+
+    <!-- ④ MemoryService -->
+    <div class="adk-card" onclick="toggleAdk(this)" style="border-color:#164e63;">
+      <div class="adk-hdr">
+        <div class="adk-ico" style="background:#061628;color:var(--cyn-l);">🧠</div>
+        <div>
+          <div class="adk-ttl" style="color:var(--cyn-l);">④ InMemoryMemoryService + preload_memory</div>
+          <div class="adk-cls">google.adk.memory.InMemoryMemoryService  ·  google.adk.tools.preload_memory</div>
+        </div>
+        <div class="adk-chev">▼</div>
+      </div>
+      <div class="adk-body">
+        <div class="benefit"><span>💡</span><span>Persiste preferencias del usuario entre <strong>sesiones distintas</strong>. Al final de cada turno: <code>add_session_to_memory()</code>. Al inicio del siguiente: <code>preload_memory</code> las carga automáticamente.</span></div>
+        <div class="mem-cycle">
+          <div class="mstep" style="border-color:var(--cyn);color:var(--cyn-l);">Sesión 1<br><small style="color:var(--txt2);">"prefiero incidencia"</small></div>
+          <div class="marrow">→</div>
+          <div class="mstep">add_session<br><small style="color:var(--txt3);">_to_memory()</small></div>
+          <div class="marrow">→</div>
+          <div class="mstep" style="background:var(--bg3);">MemoryService<br><small style="color:var(--txt3);">InMemory</small></div>
+          <div class="marrow">→</div>
+          <div class="mstep">preload<br><small style="color:var(--txt3);">_memory</small></div>
+          <div class="marrow">→</div>
+          <div class="mstep" style="border-color:var(--cyn);color:var(--cyn-l);">Sesión 2<br><small style="color:var(--cyn-l);">ya recuerda ✅</small></div>
+        </div>
+        <div style="margin-top:9px;font-size:11px;color:var(--txt2);">Resultado: el agente responde en "incidencia" sin que el usuario vuelva a pedirlo en la próxima sesión.</div>
+      </div>
+    </div>
+
+    <!-- ⑤ ParallelAgent — FULL WIDTH -->
+    <div class="adk-card" onclick="toggleAdk(this)" style="grid-column:1/-1;border-color:#4c1d95;">
+      <div class="adk-hdr">
+        <div class="adk-ico" style="background:#12002e;color:var(--pur-l);">⚡</div>
+        <div>
+          <div class="adk-ttl" style="color:var(--pur-l);">⑤ ParallelAgent — epidemio_viz_parallel<span class="tag-new">✦ NUEVO</span></div>
+          <div class="adk-cls">google.adk.agents.parallel_agent.ParallelAgent</div>
+        </div>
+        <div class="adk-chev">▼</div>
+      </div>
+      <div class="adk-body">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div>
+            <div class="benefit"><span>💡</span><span>Ejecuta <strong>epidemio_agent</strong> y <strong>viz_agent</strong> en paralelo cuando el usuario pide datos y gráfica en el mismo mensaje. Sin dependencias entre ramas → ambos procesan simultáneamente.</span></div>
+            <div class="code-block">
+              epidemio_viz_parallel = ParallelAgent(<br>
+              &nbsp;&nbsp;name = "epidemio_viz_parallel",<br>
+              &nbsp;&nbsp;description = "Usame cuando el usuario<br>
+              &nbsp;&nbsp;&nbsp;&nbsp;pida datos Y gráfica en el mismo turno.",<br>
+              &nbsp;&nbsp;sub_agents = [epidemio_agent, viz_agent],<br>
+              )
+            </div>
+            <div style="margin-top:10px;font-size:11px;color:var(--txt2);">
+              <strong style="color:var(--txt3);">Triggers:</strong> "dame el top y la gráfica" · "serie en tabla y gráfico" · "visualiza y muéstrame los números"
+            </div>
+          </div>
+          <div>
+            <div class="tvis">
+              <div style="font-size:10.5px;color:var(--txt3);margin-bottom:9px;font-weight:600;">Comparación de latencia total:</div>
+              <div class="trow">
+                <div class="tlbl">Secuencial:</div>
+                <div class="tbars">
+                  <div class="tbar bar-e" style="width:48%;">epidemio</div>
+                  <div class="tbar bar-v" style="width:48%;">viz</div>
+                </div>
+              </div>
+              <div class="trow">
+                <div class="tlbl">Paralelo:</div>
+                <div class="tbars" style="position:relative;height:13px;">
+                  <div class="tbar bar-e" style="width:48%;position:absolute;">epidemio</div>
+                  <div class="tbar bar-v" style="width:48%;position:absolute;opacity:.55;">viz</div>
+                </div>
+                <span style="font-size:10.5px;color:var(--pur-l);font-weight:700;margin-left:8px;white-space:nowrap;">⚡ ÷ 2</span>
+              </div>
+            </div>
+            <div style="margin-top:9px;font-size:11px;color:var(--txt2);">
+              Sin race conditions: epidemio escribe a <code>last_municipio / last_anio</code> y viz a <code>_chart_cache</code> — state keys distintos.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB 3 — EJEMPLOS
+════════════════════════════════════════════════ -->
+<div id="p-ej" class="panel">
+  <div class="stitle">Cómo el orquestador enruta cada consulta</div>
+  <div class="ssub">Presiona ▶ Simular en cada tarjeta para ver el flujo paso a paso.</div>
+
+  <div class="ex-grid">
+
+    <!-- 1: epidemio -->
+    <div class="ex-card" style="border-color:#f59e0b30;">
+      <div class="ex-ttl" style="color:var(--org-l);">📊 Consulta numérica → epidemio_agent</div>
+      <div class="qbox" style="border-left-color:var(--org);">"¿Cuántos casos de dengue tuvo Cali en 2024?"</div>
+      <div class="steps" id="s1">
+        <div class="step" style="border-left-color:var(--ind);">
+          <span class="sico">🧠</span>
+          <span class="stxt">Orchestrator analiza la intención del mensaje
+            <span class="scode">intent: consulta numérica → epidemio_agent</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--cyn);">
+          <span class="sico">🧠</span>
+          <span class="stxt">preload_memory carga preferencias de la sesión anterior
+            <span class="scode">memoria recuperada: "usuario prefiere incidencia"</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--org);">
+          <span class="sico">🔧</span>
+          <span class="stxt">epidemio_agent ejecuta la herramienta SQL
+            <span class="scode">casos_por_municipio_anio("CALI", 2024)</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--grn);">
+          <span class="sico">📤</span>
+          <span class="stxt">PostgreSQL/PostGIS retorna el dato
+            <span class="scode">→ 4.823 casos · incidencia 183.4/100k hab.</span>
+          </span>
+        </div>
+      </div>
+      <div class="rbox" id="r1" style="background:#1c1007;border-color:#f59e0b50;color:#fed7aa;">
+        ✅ <strong>Cali 2024:</strong> 4.823 casos · Incidencia 183.4/100k · Responde en <em>incidencia</em> por preferencia recordada de sesión anterior, sin que el usuario lo repita.
+      </div>
+      <button class="play" id="b1" onclick="sim(1,event)">▶ Simular</button>
+    </div>
+
+    <!-- 2: viz -->
+    <div class="ex-card" style="border-color:#ec489930;">
+      <div class="ex-ttl" style="color:var(--pnk-l);">📈 Solicitud visual → viz_agent</div>
+      <div class="qbox" style="border-left-color:var(--pnk);">"Dame la gráfica del top 5 de municipios en 2024"</div>
+      <div class="steps" id="s2">
+        <div class="step" style="border-left-color:var(--ind);">
+          <span class="sico">🧠</span>
+          <span class="stxt">Orchestrator detecta solicitud de imagen/gráfica
+            <span class="scode">intent: visual PNG → viz_agent</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--pnk);">
+          <span class="sico">🔧</span>
+          <span class="stxt">viz_agent llama la herramienta de visualización
+            <span class="scode">grafica_top_municipios(anio=2024, n=5)</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--pur);">
+          <span class="sico">🗂️</span>
+          <span class="stxt">Caché determinista — verifica si el artifact ya existe
+            <span class="scode">artifact "top5_casos_2024.png" → ¡ya existe!</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--grn);">
+          <span class="sico">📤</span>
+          <span class="stxt">Reutiliza el PNG sin volver a generarlo
+            <span class="scode">→ PNG desde InMemoryArtifactService · 0 ms matplotlib</span>
+          </span>
+        </div>
+      </div>
+      <div class="rbox" id="r2" style="background:#1a0510;border-color:#ec489950;color:#fbcfe8;">
+        ✅ <strong>Gráfica PNG:</strong> top 5 municipios 2024 reutilizada desde caché · 0 ms de procesamiento matplotlib · Artifact devuelto al frontend.
+      </div>
+      <button class="play" id="b2" onclick="sim(2,event)">▶ Simular</button>
+    </div>
+
+    <!-- 3: ui -->
+    <div class="ex-card" style="border-color:#06b6d430;">
+      <div class="ex-ttl" style="color:var(--cyn-l);">🗺️ Control de UI → ui_agent</div>
+      <div class="qbox" style="border-left-color:var(--cyn);">"Abre el mapa de incidencia de 2024 sin incluir Cali"</div>
+      <div class="steps" id="s3">
+        <div class="step" style="border-left-color:var(--ind);">
+          <span class="sico">🧠</span>
+          <span class="stxt">Orchestrator detecta acción de interfaz
+            <span class="scode">intent: navegación UI → ui_agent</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--cyn);">
+          <span class="sico">🔧</span>
+          <span class="stxt">ui_agent ejecuta la herramienta de mapa
+            <span class="scode">mostrar_mapa_coropletico(var="incidencia_dengue", anio=2024, incluir_cali=False)</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--pnk);">
+          <span class="sico">📡</span>
+          <span class="stxt">Retorna JSON action al frontend (sin esperar LLM)
+            <span class="scode">{"type":"map","var":"incidencia_dengue","anio":2024,"incluir_cali":false}</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--grn);">
+          <span class="sico">🌍</span>
+          <span class="stxt">Frontend actualiza Leaflet.js sin recargar
+            <span class="scode">→ coroplético renderizado con geom PostGIS (41 municipios)</span>
+          </span>
+        </div>
+      </div>
+      <div class="rbox" id="r3" style="background:#021e26;border-color:#06b6d450;color:#a5f3fc;">
+        ✅ <strong>Mapa actualizado:</strong> incidencia 2024 · 41 municipios (sin Cali) · JSON action via capa local FastAPI · Leaflet.js renderiza en tiempo real.
+      </div>
+      <button class="play" id="b3" onclick="sim(3,event)">▶ Simular</button>
+    </div>
+
+    <!-- 4: parallel -->
+    <div class="ex-card" style="border-color:#a855f750;">
+      <div class="ex-ttl" style="color:var(--pur-l);">⚡ Datos + gráfica → ParallelAgent<span class="tag-new">NUEVO ADK</span></div>
+      <div class="qbox" style="border-left-color:var(--pur);">"Dame los datos y la gráfica del top 5 de 2024"</div>
+      <div class="steps" id="s4">
+        <div class="step" style="border-left-color:var(--ind);">
+          <span class="sico">🧠</span>
+          <span class="stxt">Orchestrator detecta datos + gráfica en el mismo turno
+            <span class="scode">intent: datos + visual → epidemio_viz_parallel</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--pur);">
+          <span class="sico">⚡</span>
+          <span class="stxt">ParallelAgent lanza ambos sub-agentes simultáneamente
+            <span class="scode">epidemio_agent ▶▶▶  viz_agent ▶▶▶  (al mismo tiempo)</span>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--pur);">
+          <span class="sico">⚙️</span>
+          <span class="stxt">Ejecución paralela en curso
+            <div style="margin-top:7px;">
+              <div class="ttrack">
+                <div class="ttlbl">epidemio_agent</div>
+                <div class="tbwrap"><div class="tbar2 bar-e" id="be4">top_municipios</div></div>
+              </div>
+              <div class="ttrack">
+                <div class="ttlbl">viz_agent</div>
+                <div class="tbwrap"><div class="tbar2 bar-v" id="bv4">grafica_top</div></div>
+              </div>
+            </div>
+          </span>
+        </div>
+        <div class="step" style="border-left-color:var(--grn);">
+          <span class="sico">📤</span>
+          <span class="stxt">Respuestas combinadas en un único turno de chat
+            <span class="scode">→ tabla de datos + PNG gráfica · latencia total ÷ 2</span>
+          </span>
+        </div>
+      </div>
+      <div class="rbox" id="r4" style="background:#12002e;border-color:#a855f760;color:#ddd6fe;">
+        ✅ <strong>Respuesta única:</strong> tabla top 5 + gráfica PNG · Tiempo ≈ max(epidemio, viz) en lugar de epidemio + viz · ~50% menos latencia vs ejecución secuencial.
+      </div>
+      <button class="play" id="b4" onclick="sim(4,event)">▶ Simular</button>
+    </div>
+
+  </div>
+</div>
+
+</div><!-- /content -->
+
+<script>
+/* ── TABS ── */
+function tab(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('on'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('on'));
+  document.getElementById('p-' + id).classList.add('on');
+  btn.classList.add('on');
+}
+
+/* ── DETAIL DATA ── */
+const D = {
+  fe:  { t:'🖥️ Frontend', cls:'HTML · JavaScript · Leaflet.js', col:'var(--blue-l)',
+         d:'Interfaz web con módulos especializados. Envía mensajes al chatbot vía POST /chat y recibe respuestas de texto o JSON actions para actualizar la UI sin recargar.',
+         items:[
+           [0,'Dashboard epidemiológico'],[0,'Mapa coroplético (Leaflet.js + PostGIS)'],
+           [0,'Geovisor interactivo (capa vectorial)'],[0,'Panel de tendencias (NeuralProphet)'],
+           [0,'Chat UI — interfaz con el agente ADK']] },
+  api: { t:'⚙️ FastAPI — server.py', cls:'FastAPI + google.adk.apps.app.App', col:'var(--ind-l)',
+         d:'Capa híbrida: resuelve consultas simples localmente sin llamar a Gemini (fuzzy matching, regex, action chaining) y delega las complejas al ADK App. Puerto 8080.',
+         items:[
+           [1,'before/after_tool_callback → adk_tool_calls.log'],
+           [0,'InMemorySessionService (estado por sesión)'],
+           [0,'InMemoryArtifactService (PNG storage)'],
+           [0,'Session state sync bidireccional (local_context ↔ session.state)'],
+           [1,'add_session_to_memory() al final de cada turno']] },
+  orc: { t:'🧠 observatorio_orchestrator', cls:'google.adk.agents.Agent (root_agent · Gemini 2.5 Flash)', col:'var(--grn-l)',
+         d:'Agente orquestador central. Analiza cada mensaje y lo transfiere al subagente correcto usando una tabla de enrutamiento en su instruction. Responde saludos directamente.',
+         items:[
+           [0,'epidemio_agent → consultas numéricas SQL'],
+           [0,'viz_agent → gráficas PNG / Artifacts'],
+           [0,'ui_agent → acciones de interfaz (JSON)'],
+           [1,'epidemio_viz_parallel → datos + gráfica en paralelo'],
+           [0,'Responde saludos sin invocar subagentes']] },
+  ep:  { t:'📊 epidemio_agent', cls:'google.adk.agents.Agent + FunctionTools + preload_memory', col:'var(--org-l)',
+         d:'Especialista en datos numéricos de dengue y demografía. Ejecuta queries SQL sobre PostgreSQL/PostGIS. Carga preferencias de sesiones anteriores con preload_memory.',
+         items:[
+           [1,'preload_memory — memoria cross-session (NUEVO ADK)'],
+           [0,'listar_municipios'],[0,'casos_por_municipio_anio(municipio, anio)'],
+           [0,'top_municipios(anio, n, metrica)'],[0,'serie_temporal_municipio(municipio)'],
+           [0,'resumen_anio(anio)'],[0,'consultar_poblacion_municipio()'],
+           [0,'consultar_poblacion_ciclo_vida()'],[0,'consultar_piramide_poblacional()'],
+           [0,'establecer_preferencia(metrica)']] },
+  vz:  { t:'📈 viz_agent', cls:'google.adk.agents.Agent + FunctionTools + ADK Artifacts', col:'var(--pnk-l)',
+         d:'Genera gráficas PNG con matplotlib y las guarda como ADK Artifacts. Caché determinista: si los mismos parámetros ya generaron un artifact, lo reutiliza directamente.',
+         items:[
+           [0,'grafica_casos_por_anio(municipio)'],[0,'grafica_top_municipios(anio, n)'],
+           [0,'grafica_serie_municipio(municipio)'],[0,'grafica_series_municipios([lista])'],
+           [0,'grafica_facet_municipios()'],[1,'InMemoryArtifactService — almacenamiento PNG'],
+           [1,'Caché determinista: nombre = hash(parámetros)']] },
+  ui:  { t:'🗺️ ui_agent', cls:'google.adk.agents.Agent + FunctionTools', col:'var(--cyn-l)',
+         d:'Controla la interfaz web devolviendo JSON actions al frontend. El frontend interpreta estas acciones y actualiza Leaflet.js, cambia módulos o ajusta filtros sin recargar.',
+         items:[
+           [0,'mostrar_mapa_coropletico(var, anio, incluir_cali)'],
+           [0,'mostrar_geovisor(capa, anio)'],[0,'abrir_modulo_observatorio(modulo)'],
+           [0,'Variables: casos / incidencia / riesgo / cambio'],
+           [1,'Retorna JSON action → interpretado por frontend JavaScript']] },
+  pa:  { t:'⚡ epidemio_viz_parallel', cls:'google.adk.agents.parallel_agent.ParallelAgent  ✦ NUEVO', col:'var(--pur-l)',
+         d:'Agente de flujo que ejecuta epidemio_agent y viz_agent en paralelo. Activo cuando el usuario pide datos numéricos Y una gráfica en el mismo turno. Reduce latencia a max(t_epid, t_viz).',
+         items:[
+           [1,'sub_agents=[epidemio_agent, viz_agent]'],
+           [0,'Trigger: "dame el top y la gráfica"'],[0,'Trigger: "serie en tabla y gráfico"'],
+           [0,'Trigger: "visualiza y muéstrame números"'],
+           [1,'Sin race conditions (state keys distintos por agente)'],
+           [1,'Latencia ÷ 2 vs ejecución secuencial']] },
+  pg:  { t:'🐘 PostgreSQL · PostGIS', cls:'Base de datos — terrarIA.valle_mun', col:'var(--pur-l)',
+         d:'Fuente de verdad de todos los datos epidemiológicos. Casos de dengue confirmados, incidencia, datos de población y geometría de los 42 municipios del Valle del Cauca.',
+         items:[
+           [0,'42 municipios del Valle del Cauca'],[0,'Período 2019–2026 · +166.000 registros'],
+           [0,'Campos: casos confirmados, incidencia/100k, población'],
+           [0,'Geometría PostGIS EPSG:4326 (campo geom)'],[0,'Accedido solo por epidemio_agent y viz_agent']] },
+  mm:  { t:'🧠 InMemoryMemoryService', cls:'google.adk.memory.InMemoryMemoryService', col:'var(--cyn-l)',
+         d:'Almacena en RAM preferencias del usuario entre sesiones distintas. Escribe después de cada turno y las recupera con preload_memory al inicio del siguiente.',
+         items:[
+           [1,'add_session_to_memory(session) — guarda al final del turno'],
+           [1,'preload_memory tool — carga al inicio automáticamente'],
+           [0,'Preferencia de métrica (casos / incidencia)'],
+           [0,'Municipio favorito / últimos consultados'],
+           [0,'Best-effort: envuelto en try/except (no rompe respuestas)']] },
+};
+
+function detail(id) {
+  document.querySelectorAll('.node,.anode,.dnode').forEach(n => n.classList.remove('sel'));
+  const el = document.getElementById('n-' + id);
+  if (el) el.classList.add('sel');
+  const d = D[id];
+  if (!d) return;
+  document.getElementById('dpanel').innerHTML =
+    `<h3 style="color:${d.col}">${d.t}</h3>
+     <div class="dcls">${d.cls}</div>
+     <div class="ddesc">${d.d}</div>
+     <div>` +
+    d.items.map(([hi, txt]) => `<div class="ditem${hi?' hi':''}">${txt}</div>`).join('') +
+    `</div>`;
+}
+
+/* ── ADK CARDS ── */
+function toggleAdk(card) { card.classList.toggle('open'); }
+
+/* ── ROUTING SIMULATION ── */
+function sim(n, e) {
+  e.stopPropagation();
+  const btn = document.getElementById('b' + n);
+  if (btn.classList.contains('on')) return;
+
+  // reset
+  document.querySelectorAll('#s' + n + ' .step').forEach(s => s.classList.remove('show'));
+  const res = document.getElementById('r' + n);
+  res.classList.remove('show');
+
+  if (n === 4) {
+    document.getElementById('be4').classList.remove('go');
+    document.getElementById('bv4').classList.remove('go');
+  }
+
+  btn.classList.add('on');
+  btn.textContent = '⏳ Simulando…';
+
+  const steps = document.querySelectorAll('#s' + n + ' .step');
+  steps.forEach((step, i) => {
+    setTimeout(() => {
+      step.classList.add('show');
+      if (n === 4 && i === 2) {
+        setTimeout(() => {
+          document.getElementById('be4').classList.add('go');
+          document.getElementById('bv4').classList.add('go');
+        }, 120);
+      }
+    }, i * 650);
+  });
+
+  setTimeout(() => {
+    res.classList.add('show');
+    btn.classList.remove('on');
+    btn.textContent = '↺ Repetir';
+  }, steps.length * 650 + 420);
+}
+</script>
+</body>
+</html>

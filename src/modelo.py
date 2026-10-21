@@ -3,8 +3,8 @@ Modelado predictivo de dengue con NeuralProphet + GPU (RTX 4060 Ti).
 Entrena series semanales por municipio y proyecta 52 semanas hacia adelante.
 """
 
-import warnings
-warnings.filterwarnings("ignore")
+from datetime import date, timedelta
+import numpy as np
 
 import pandas as pd
 from pathlib import Path
@@ -19,16 +19,25 @@ def _get_neuralprophet():
 
 
 def _semana_a_fecha(anio: int, semana: int) -> pd.Timestamp:
-    """Semana epidemiológica (ISO) + año → fecha del lunes de esa semana."""
+    """Semana epidemiológica INS/MMWR → domingo inicial de la semana."""
     try:
-        return pd.to_datetime(f"{int(anio)}-W{int(semana):02d}-1", format="%G-W%V-%u")
-    except Exception:
+        anio = int(anio)
+        semana = int(semana)
+        jan4 = date(anio, 1, 4)
+        week_one = jan4 - timedelta(days=(jan4.weekday() + 1) % 7)
+        next_jan4 = date(anio + 1, 1, 4)
+        next_week_one = next_jan4 - timedelta(days=(next_jan4.weekday() + 1) % 7)
+        weeks_in_year = (next_week_one - week_one).days // 7
+        if not 1 <= semana <= weeks_in_year:
+            return pd.NaT
+        return pd.Timestamp(week_one + timedelta(weeks=semana - 1))
+    except (TypeError, ValueError, OverflowError):
         return pd.NaT
 
 
 def cargar_serie_semanal(engine, mpio_ccdgo: str = None) -> pd.DataFrame:
     """
-    Agrega casos individuales de dengue_m en series semanales por municipio.
+    Carga series semanales anonimizadas por municipio.
     Retorna columnas: mpio_ccdgo, ds (lunes de cada semana ISO), y (casos)
     """
     filtro = "AND mpio_ccdgo = :mpio_ccdgo" if mpio_ccdgo else ""
@@ -37,34 +46,44 @@ def cargar_serie_semanal(engine, mpio_ccdgo: str = None) -> pd.DataFrame:
     query = text(f"""
     SELECT
         mpio_ccdgo,
-        año::int    AS anio,
+        anio::int   AS anio,
         semana::int AS semana,
-        COUNT(*)    AS casos
-    FROM public.dengue_m
-    WHERE año IS NOT NULL AND semana IS NOT NULL
+        SUM(casos)  AS casos
+    FROM public.dengue_semana_municipio
+    WHERE anio IS NOT NULL AND semana IS NOT NULL
     {filtro}
-    GROUP BY mpio_ccdgo, año, semana
-    ORDER BY mpio_ccdgo, año, semana
+    GROUP BY mpio_ccdgo, anio, semana
+    ORDER BY mpio_ccdgo, anio, semana
     """)
 
     df = pd.read_sql(query, engine, params=params)
+    if df.empty:
+        raise ValueError("No hay registros semanales para el municipio solicitado.")
     df["ds"] = df.apply(lambda r: _semana_a_fecha(r["anio"], r["semana"]), axis=1)
-    df = df.dropna(subset=["ds"])
+    if df["ds"].isna().any():
+        raise ValueError("Hay semanas incompatibles con el calendario ISO; validar el calendario de la fuente.")
     df["y"] = df["casos"].astype(float)
-    # colapsa posibles duplicados por fecha (semana 53 puede coincidir con semana 1 del año siguiente)
+    # Colapsa los dos códigos de evento y completa semanas sin casos con cero.
     df = (
         df.groupby(["mpio_ccdgo", "ds"], as_index=False)["y"]
         .sum()
         .sort_values(["mpio_ccdgo", "ds"])
         .reset_index(drop=True)
     )
-    return df[["mpio_ccdgo", "ds", "y"]]
+    completas = []
+    for codigo, grupo in df.groupby("mpio_ccdgo", sort=True):
+        fechas = pd.date_range(grupo["ds"].min(), grupo["ds"].max(), freq="W-SUN")
+        serie = grupo.set_index("ds")["y"].reindex(fechas, fill_value=0.0)
+        completas.append(
+            pd.DataFrame({"mpio_ccdgo": codigo, "ds": fechas, "y": serie.to_numpy()})
+        )
+    return pd.concat(completas, ignore_index=True)[["mpio_ccdgo", "ds", "y"]]
 
 
-def _construir_modelo(accelerator: str = "gpu"):
+def _construir_modelo(accelerator: str = "gpu", periodos: int = 52):
     NeuralProphet = _get_neuralprophet()
     return NeuralProphet(
-        n_forecasts=1,
+        n_forecasts=periodos,
         n_lags=52,
         yearly_seasonality=True,
         weekly_seasonality=False,
@@ -86,16 +105,42 @@ def entrenar_pronosticar(
     Recibe DataFrame con columnas [ds, y], entrena NeuralProphet y devuelve forecast.
     Columnas en el resultado: ds, y, yhat1, yhat1 10.0%, yhat1 90.0%
     """
-    serie = (
-        serie[["ds", "y"]]
-        .sort_values("ds")
-        .dropna(subset=["y"])
-        .reset_index(drop=True)
-    )
-    model = _construir_modelo(accelerator)
-    model.fit(serie, freq="W")
+    if not isinstance(periodos, int) or isinstance(periodos, bool) or not 1 <= periodos <= 52:
+        raise ValueError("El horizonte debe ser un entero entre 1 y 52 semanas.")
+    serie = serie[["ds", "y"]].copy().sort_values("ds").reset_index(drop=True)
+    serie["ds"] = pd.to_datetime(serie["ds"], errors="coerce")
+    serie["y"] = pd.to_numeric(serie["y"], errors="coerce")
+    if serie["ds"].isna().any() or serie["ds"].duplicated().any():
+        raise ValueError("Las fechas semanales deben ser válidas y únicas.")
+    if not np.isfinite(serie["y"]).all() or (serie["y"] < 0).any():
+        raise ValueError("Los casos deben ser observaciones no negativas; no se imputan faltantes.")
+    if len(serie) < 52 + periodos + 1:
+        raise ValueError("Historia insuficiente para 52 rezagos y el horizonte solicitado.")
+    if not serie["ds"].diff().dropna().eq(pd.Timedelta(days=7)).all():
+        raise ValueError("Hay semanas faltantes; distinguir ausencia de reporte de cero casos antes de entrenar.")
+    model = _construir_modelo(accelerator, periodos=periodos)
+    frequency = "W-" + ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"][serie["ds"].iloc[0].dayofweek]
+    model.fit(serie, freq=frequency)
     future = model.make_future_dataframe(serie, periods=periodos)
-    return model.predict(future)
+    raw = model.predict(future)
+    future_rows = raw[raw["ds"] > serie["ds"].max()].sort_values("ds")
+    expected_dates = pd.date_range(serie["ds"].max() + pd.Timedelta(days=7), periods=periodos, freq=frequency)
+    if len(future_rows) != periodos or list(future_rows["ds"]) != list(expected_dates):
+        raise ValueError("El modelo no produjo todas las semanas futuras solicitadas.")
+    # NeuralProphet stores each lead in yhat{lead}; expose the last-origin forecast
+    # in the stable yhat1 interface consumed by plots and CSV export.
+    predictions = []
+    for lead, (_, row) in enumerate(future_rows.iterrows(), 1):
+        item = {"ds": row["ds"], "y": float("nan")}
+        for suffix in ("", " 10.0%", " 90.0%"):
+            value = row.get(f"yhat{lead}{suffix}")
+            if value is None or not np.isfinite(value):
+                raise ValueError(f"Pronóstico incompleto en horizonte {lead} ({suffix or 'central'}).")
+            item[f"yhat1{suffix}"] = max(0.0, float(value))
+        if not item["yhat1 10.0%"] <= item["yhat1"] <= item["yhat1 90.0%"]:
+            raise ValueError("Cuantiles cruzados: el pronóstico requiere validación.")
+        predictions.append(item)
+    return pd.concat([serie, pd.DataFrame(predictions)], ignore_index=True)
 
 
 def pronosticar_municipio(

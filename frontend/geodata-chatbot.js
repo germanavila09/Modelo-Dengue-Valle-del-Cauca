@@ -348,10 +348,10 @@ function _openArtifactModal(src, title) {
     <div class="artifact-modal-backdrop" onclick="document.getElementById('artifact-modal').remove()"></div>
     <div class="artifact-modal-content">
       <div class="artifact-modal-header">
-        <span>${title.replace(/_/g, ' ').replace('.png', '')}</span>
+        <span>${_escapeAttr(title.replace(/_/g, ' ').replace('.png', ''))}</span>
         <button onclick="document.getElementById('artifact-modal').remove()">✕</button>
       </div>
-      <img src="${src}" alt="${title}" class="artifact-modal-img"/>
+      <img src="${_escapeAttr(src)}" alt="${_escapeAttr(title)}" class="artifact-modal-img"/>
     </div>`;
   document.body.appendChild(modal);
 }

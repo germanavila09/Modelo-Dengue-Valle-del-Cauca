@@ -1,0 +1,196 @@
+<svg viewBox="0 0 960 820" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', Arial, sans-serif">
+
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrG" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#10b981"/>
+    </marker>
+    <marker id="arrP" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="820" fill="#0f172a" rx="12"/>
+
+  <!-- TITLE -->
+  <text x="480" y="36" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9">Observatorio GeoSalud — Arquitectura ADK</text>
+  <text x="480" y="54" text-anchor="middle" font-size="10.5" fill="#94a3b8">Sistema multiagente de vigilancia epidemiológica de dengue · Valle del Cauca · 42 municipios · 2019–2026</text>
+
+  <!-- FRONTEND -->
+  <rect x="50" y="70" width="860" height="62" rx="8" fill="#1e3a5f" stroke="#3b82f6" stroke-width="1.5"/>
+  <text x="480" y="91" text-anchor="middle" font-size="11.5" font-weight="700" fill="#93c5fd">FRONTEND  —  HTML + Leaflet.js</text>
+  <text x="130" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Dashboard</text>
+  <text x="270" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Mapa Coroplético</text>
+  <text x="400" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Geovisor</text>
+  <text x="530" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Tendencias</text>
+  <text x="660" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Demografía</text>
+  <text x="790" y="110" text-anchor="middle" font-size="9.5" fill="#bfdbfe">Chat UI</text>
+
+  <!-- Arrow: Frontend → FastAPI -->
+  <line x1="480" y1="132" x2="480" y2="152" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="500" y="146" font-size="9" fill="#64748b">HTTP /chat</text>
+
+  <!-- FASTAPI SERVER + ADK APP -->
+  <rect x="50" y="152" width="860" height="108" rx="8" fill="#1a1a2e" stroke="#6366f1" stroke-width="1.5"/>
+  <text x="480" y="172" text-anchor="middle" font-size="11.5" font-weight="700" fill="#a5b4fc">FASTAPI  chatbot/server.py  ·  ADK App wrapper</text>
+
+  <!-- Local layer box -->
+  <rect x="66" y="182" width="334" height="68" rx="6" fill="#1e1b4b" stroke="#818cf8" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="233" y="197" text-anchor="middle" font-size="9.5" font-weight="600" fill="#c7d2fe">Capa Local (cero latencia · sin Gemini)</text>
+  <text x="233" y="212" text-anchor="middle" font-size="8.5" fill="#a5b4fc">Fuzzy matching · Regex · Action chaining</text>
+  <text x="233" y="226" text-anchor="middle" font-size="8.5" fill="#a5b4fc">Respuestas directas a BD · Fallback de cuota</text>
+  <text x="233" y="240" text-anchor="middle" font-size="8.5" fill="#a5b4fc">InMemorySessionService · InMemoryArtifactService</text>
+
+  <!-- EventsCompaction pill -->
+  <rect x="412" y="182" width="224" height="68" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="524" y="197" text-anchor="middle" font-size="8.5" font-weight="600" fill="#c7d2fe">EventsCompactionConfig</text>
+  <text x="524" y="211" text-anchor="middle" font-size="7.5" fill="#818cf8">token_threshold = 16 000</text>
+  <text x="524" y="224" text-anchor="middle" font-size="7.5" fill="#818cf8">compaction_interval = 15 turnos</text>
+  <text x="524" y="237" text-anchor="middle" font-size="7.5" fill="#818cf8">overlap_size = 2</text>
+  <text x="524" y="244" text-anchor="middle" font-size="7" fill="#6366f1">↓ latencia en sesiones largas</text>
+
+  <!-- ContextCache pill -->
+  <rect x="648" y="182" width="248" height="68" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="772" y="197" text-anchor="middle" font-size="8.5" font-weight="600" fill="#c7d2fe">ContextCacheConfig</text>
+  <text x="772" y="211" text-anchor="middle" font-size="7.5" fill="#818cf8">min_tokens = 2 048</text>
+  <text x="772" y="224" text-anchor="middle" font-size="7.5" fill="#818cf8">ttl_seconds = 600  ·  cache_intervals = 10</text>
+  <text x="772" y="237" text-anchor="middle" font-size="7.5" fill="#818cf8">Cachea system prompts con Gemini 2.0+</text>
+  <text x="772" y="244" text-anchor="middle" font-size="7" fill="#6366f1">↓ tokens facturados por turno</text>
+
+  <!-- Arrow: FastAPI → Orchestrator -->
+  <line x1="480" y1="260" x2="480" y2="280" stroke="#64748b" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="488" y="274" font-size="8.5" fill="#64748b">adk_app.run_async()</text>
+
+  <!-- ORCHESTRATOR -->
+  <rect x="262" y="280" width="436" height="52" rx="8" fill="#134e4a" stroke="#10b981" stroke-width="2"/>
+  <text x="480" y="300" text-anchor="middle" font-size="11.5" font-weight="700" fill="#6ee7b7">observatorio_orchestrator</text>
+  <text x="480" y="316" text-anchor="middle" font-size="9.5" fill="#a7f3d0">root_agent · Gemini 2.5 Flash · Enruta al subagente especializado</text>
+  <text x="480" y="329" text-anchor="middle" font-size="8.5" fill="#6ee7b7">before_tool_callback · after_tool_callback → adk_tool_calls.log</text>
+
+  <!-- Arrows orchestrator → subagents -->
+  <line x1="330" y1="332" x2="160" y2="376" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrG)"/>
+  <line x1="400" y1="332" x2="340" y2="376" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrG)"/>
+  <line x1="560" y1="332" x2="630" y2="376" stroke="#10b981" stroke-width="1.5" marker-end="url(#arrG)"/>
+  <!-- purple dashed → parallel -->
+  <line x1="630" y1="332" x2="820" y2="376" stroke="#a855f7" stroke-width="1.8" stroke-dasharray="5,2" marker-end="url(#arrP)"/>
+  <text x="758" y="360" text-anchor="middle" font-size="7.5" fill="#a855f7">datos + gráfica</text>
+
+  <!-- SUBAGENTS -->
+
+  <!-- epidemio_agent -->
+  <rect x="50" y="376" width="218" height="130" rx="8" fill="#1c1917" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="159" y="395" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fbbf24">epidemio_agent</text>
+  <text x="159" y="408" text-anchor="middle" font-size="8.5" fill="#fde68a">Consultas numéricas y demográficas</text>
+  <line x1="66" y1="414" x2="251" y2="414" stroke="#78350f" stroke-width="0.8"/>
+  <text x="66" y="427" font-size="8" fill="#fed7aa">• listar_municipios</text>
+  <text x="66" y="439" font-size="8" fill="#fed7aa">• casos_por_municipio_anio</text>
+  <text x="66" y="451" font-size="8" fill="#fed7aa">• top_municipios</text>
+  <text x="66" y="463" font-size="8" fill="#fed7aa">• serie_temporal_municipio</text>
+  <text x="66" y="475" font-size="8" fill="#fed7aa">• resumen_anio</text>
+  <text x="66" y="487" font-size="8" fill="#fed7aa">• consultar_poblacion_* (×3)</text>
+  <text x="66" y="499" font-size="8" fill="#fed7aa">• establecer_preferencia</text>
+
+  <!-- viz_agent -->
+  <rect x="278" y="376" width="218" height="130" rx="8" fill="#1c1917" stroke="#ec4899" stroke-width="1.5"/>
+  <text x="387" y="395" text-anchor="middle" font-size="10.5" font-weight="700" fill="#f472b6">viz_agent</text>
+  <text x="387" y="408" text-anchor="middle" font-size="8.5" fill="#fbcfe8">Gráficas PNG · ADK Artifacts</text>
+  <line x1="295" y1="414" x2="479" y2="414" stroke="#831843" stroke-width="0.8"/>
+  <text x="295" y="427" font-size="8" fill="#fce7f3">• grafica_casos_por_anio</text>
+  <text x="295" y="439" font-size="8" fill="#fce7f3">• grafica_top_municipios</text>
+  <text x="295" y="451" font-size="8" fill="#fce7f3">• grafica_serie_municipio</text>
+  <text x="295" y="463" font-size="8" fill="#fce7f3">• grafica_series_municipios</text>
+  <text x="295" y="475" font-size="8" fill="#fce7f3">• grafica_facet_municipios</text>
+  <text x="295" y="487" font-size="8" fill="#f472b6">Caché determinista de artifacts</text>
+  <text x="295" y="499" font-size="8" fill="#f472b6">(nombre = parámetros del gráfico)</text>
+
+  <!-- ui_agent -->
+  <rect x="506" y="376" width="192" height="130" rx="8" fill="#1c1917" stroke="#06b6d4" stroke-width="1.5"/>
+  <text x="602" y="395" text-anchor="middle" font-size="10.5" font-weight="700" fill="#22d3ee">ui_agent</text>
+  <text x="602" y="408" text-anchor="middle" font-size="8.5" fill="#a5f3fc">Acciones de interfaz (JSON)</text>
+  <line x1="523" y1="414" x2="691" y2="414" stroke="#164e63" stroke-width="0.8"/>
+  <text x="523" y="427" font-size="8" fill="#cffafe">• mostrar_mapa_coropletico</text>
+  <text x="523" y="439" font-size="8" fill="#cffafe">• mostrar_geovisor</text>
+  <text x="523" y="451" font-size="8" fill="#cffafe">• abrir_modulo_observatorio</text>
+  <text x="523" y="467" font-size="8" fill="#22d3ee">Panel · Indicadores · Tendencias</text>
+  <text x="523" y="479" font-size="8" fill="#22d3ee">Demografía · Priorización</text>
+  <text x="523" y="491" font-size="8" fill="#22d3ee">Geovisor · Coroplético</text>
+
+  <!-- ParallelAgent -->
+  <rect x="708" y="376" width="202" height="130" rx="8" fill="#1a0a2e" stroke="#a855f7" stroke-width="2"/>
+  <!-- NEW badge -->
+  <rect x="830" y="378" width="72" height="17" rx="4" fill="#7c3aed"/>
+  <text x="866" y="390" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">✦ NUEVO</text>
+  <text x="809" y="401" text-anchor="middle" font-size="9.5" font-weight="700" fill="#c084fc">epidemio_viz_parallel</text>
+  <text x="809" y="414" text-anchor="middle" font-size="8.5" fill="#ddd6fe">ParallelAgent</text>
+  <line x1="724" y1="419" x2="893" y2="419" stroke="#4c1d95" stroke-width="0.8"/>
+  <text x="724" y="432" font-size="8" fill="#e9d5ff">Ejecuta en paralelo:</text>
+  <text x="736" y="447" font-size="8.5" fill="#fbbf24" font-weight="600">▶ epidemio_agent</text>
+  <text x="736" y="462" font-size="8.5" fill="#f472b6" font-weight="600">▶ viz_agent</text>
+  <text x="724" y="478" font-size="8" fill="#a78bfa">Sin dependencias entre ramas</text>
+  <text x="724" y="491" font-size="8" fill="#a78bfa">Datos + gráfica simultáneos</text>
+  <text x="724" y="504" font-size="8" fill="#c084fc">↓ latencia a la mitad</text>
+
+  <!-- Arrows: subagents → DB -->
+  <line x1="159" y1="506" x2="159" y2="560" stroke="#64748b" stroke-width="1.2" marker-end="url(#arr)"/>
+  <line x1="387" y1="506" x2="387" y2="560" stroke="#64748b" stroke-width="1.2" marker-end="url(#arr)"/>
+  <!-- parallel → DB dashed -->
+  <line x1="809" y1="506" x2="809" y2="542" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,2"/>
+  <line x1="809" y1="542" x2="580" y2="560" stroke="#a855f7" stroke-width="1" stroke-dasharray="4,2" marker-end="url(#arrP)"/>
+
+  <!-- POSTGRESQL -->
+  <rect x="50" y="560" width="650" height="64" rx="8" fill="#1a0533" stroke="#a855f7" stroke-width="1.5"/>
+  <text x="375" y="581" text-anchor="middle" font-size="11.5" font-weight="700" fill="#c084fc">PostgreSQL / PostGIS  —  terrarIA.valle_mun</text>
+  <text x="130" y="601" text-anchor="middle" font-size="8.5" fill="#e9d5ff">42 municipios</text>
+  <text x="260" y="601" text-anchor="middle" font-size="8.5" fill="#e9d5ff">2019 – 2026</text>
+  <text x="380" y="601" text-anchor="middle" font-size="8.5" fill="#e9d5ff">+166.000 casos</text>
+  <text x="505" y="601" text-anchor="middle" font-size="8.5" fill="#e9d5ff">geom (PostGIS)</text>
+  <text x="375" y="615" text-anchor="middle" font-size="8.5" fill="#c084fc">conteo_dengue · incidencia_dengue · población · SQLAlchemy + psycopg2</text>
+
+  <!-- NEURALPROPHET -->
+  <rect x="714" y="560" width="196" height="64" rx="8" fill="#1a0a1a" stroke="#8b5cf6" stroke-width="1.5"/>
+  <text x="812" y="581" text-anchor="middle" font-size="11" font-weight="700" fill="#a78bfa">NeuralProphet</text>
+  <text x="812" y="597" text-anchor="middle" font-size="8.5" fill="#ddd6fe">Pronósticos por municipio</text>
+  <text x="812" y="611" text-anchor="middle" font-size="8.5" fill="#ddd6fe">PyTorch · serie temporal</text>
+
+  <!-- LEGEND -->
+  <rect x="50" y="642" width="860" height="164" rx="8" fill="#0f172a" stroke="#334155" stroke-width="1"/>
+  <text x="480" y="660" text-anchor="middle" font-size="10" font-weight="600" fill="#94a3b8">Componentes ADK — estado actual del sistema</text>
+
+  <!-- col 1: base -->
+  <circle cx="76" cy="678" r="4" fill="#10b981"/><text x="86" y="682" font-size="8.5" fill="#94a3b8">Agent (root + sub_agents)</text>
+  <circle cx="76" cy="696" r="4" fill="#f59e0b"/><text x="86" y="700" font-size="8.5" fill="#94a3b8">FunctionTools + ToolContext</text>
+  <circle cx="76" cy="714" r="4" fill="#ec4899"/><text x="86" y="718" font-size="8.5" fill="#94a3b8">ADK Artifacts (PNG)</text>
+  <circle cx="76" cy="732" r="4" fill="#06b6d4"/><text x="86" y="736" font-size="8.5" fill="#94a3b8">InMemorySessionService / State</text>
+  <circle cx="76" cy="750" r="4" fill="#6366f1"/><text x="86" y="754" font-size="8.5" fill="#94a3b8">before/after_tool_callback → log</text>
+  <circle cx="76" cy="768" r="4" fill="#3b82f6"/><text x="86" y="772" font-size="8.5" fill="#94a3b8">FastAPI capa híbrida local+ADK</text>
+  <circle cx="76" cy="786" r="4" fill="#64748b"/><text x="86" y="790" font-size="8.5" fill="#94a3b8">Gemini 2.5 Flash</text>
+
+  <!-- col 2: infra -->
+  <circle cx="286" cy="678" r="4" fill="#a855f7"/><text x="296" y="682" font-size="8.5" fill="#94a3b8">PostgreSQL / PostGIS</text>
+  <circle cx="286" cy="696" r="4" fill="#8b5cf6"/><text x="296" y="700" font-size="8.5" fill="#94a3b8">NeuralProphet / PyTorch</text>
+  <circle cx="286" cy="714" r="4" fill="#0ea5e9"/><text x="296" y="718" font-size="8.5" fill="#94a3b8">Leaflet.js Frontend</text>
+
+  <!-- col 3: NEW features box -->
+  <rect x="474" y="666" width="424" height="128" rx="6" fill="#1a0a2e" stroke="#7c3aed" stroke-width="1.2"/>
+  <text x="686" y="682" text-anchor="middle" font-size="9" font-weight="700" fill="#c084fc">✦  Mejoras ADK implementadas (v2)</text>
+
+  <rect x="486" y="691" width="9" height="9" rx="2" fill="#6366f1"/>
+  <text x="500" y="700" font-size="8.5" fill="#a5b4fc" font-weight="600">App wrapper (reemplaza Runner)</text>
+  <text x="500" y="712" font-size="8" fill="#818cf8">Patrón oficial ADK — habilita compactación y caché</text>
+
+  <rect x="486" y="719" width="9" height="9" rx="2" fill="#6366f1"/>
+  <text x="500" y="728" font-size="8.5" fill="#a5b4fc" font-weight="600">EventsCompactionConfig</text>
+  <text x="500" y="740" font-size="8" fill="#818cf8">Compacta historial automáticamente · ↓ latencia en sesiones largas</text>
+
+  <rect x="486" y="747" width="9" height="9" rx="2" fill="#6366f1"/>
+  <text x="500" y="756" font-size="8.5" fill="#a5b4fc" font-weight="600">ContextCacheConfig</text>
+  <text x="500" y="768" font-size="8" fill="#818cf8">Cachea system prompts con Gemini 2.0+ · ↓ tokens facturados/turno</text>
+
+  <rect x="486" y="775" width="9" height="9" rx="2" fill="#7c3aed"/>
+  <text x="500" y="784" font-size="8.5" fill="#c084fc" font-weight="600">ParallelAgent · epidemio_viz_parallel</text>
+  <text x="500" y="796" font-size="8" fill="#a78bfa">epidemio_agent + viz_agent en paralelo · datos + gráfica a la mitad del tiempo</text>
+
+</svg>

@@ -17,10 +17,32 @@ Arranque:
 
 El frontend llama a http://localhost:8080 (configurable con la variable
 CHATBOT_PORT en .env).
+
+Patrón de ejecución (ADK):
+    Usa App (en lugar de Runner directo) con dos configuraciones de optimización:
+
+    EventsCompactionConfig — compactación automática de contexto:
+      · token_threshold=16000  → dispara si el contexto supera ~16k tokens
+      · compaction_interval=15 → compacta cada 15 turnos de conversación
+      Reduce latencia y costos en sesiones largas sin perder contexto reciente.
+
+    ContextCacheConfig — caché de system prompts con Gemini:
+      · min_tokens=2048  → activa cuando el prompt supera 2k tokens
+      · ttl_seconds=600  → caché válido 10 minutos
+      Los system prompts de los agentes (orquestador + subagentes) son estáticos
+      y superan 3k tokens — se cachean con Gemini 2.0+ reduciendo costo por turno.
+
+    InMemoryMemoryService — memoria entre sesiones:
+      Persiste preferencias del usuario (métrica, municipio de interés) entre
+      sesiones distintas del mismo usuario. Se guarda automáticamente al final
+      de cada turno ADK. epidemio_agent usa preload_memory para cargar el
+      contexto pasado al inicio de cada nuevo turno.
 """
 
 from __future__ import annotations
 
+import hashlib
+import logging
 import difflib
 import io
 import os
@@ -46,9 +68,12 @@ from fastapi import FastAPI, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
+from google.adk.apps.app import App, EventsCompactionConfig
+from google.adk.agents.context_cache_config import ContextCacheConfig
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.adk.artifacts import InMemoryArtifactService
+from google.adk.memory import InMemoryMemoryService
 from google.genai import types as genai_types
 
 import matplotlib.pyplot as plt
@@ -67,14 +92,35 @@ USER_ID   = "frontend_user"
 # ── Servicios ADK ──────────────────────────────────────────────────────────────
 session_service  = InMemorySessionService()
 artifact_service = InMemoryArtifactService()
+memory_service   = InMemoryMemoryService()   # memoria entre sesiones
 fallback_artifacts: dict[tuple[str, str], bytes] = {}
 local_context: dict[str, dict] = {}
 
+adk_app = App(
+    name=APP_NAME,
+    root_agent=root_agent,
+    events_compaction_config=EventsCompactionConfig(
+        # Estrategia combinada: token-based (prioridad) + sliding window
+        token_threshold=16000,    # activa compactación cuando el contexto supera ~16k tokens
+        event_retention_size=4,   # conserva 4 eventos recientes sin comprimir
+        compaction_interval=15,   # también compacta cada 15 turnos de conversación
+        overlap_size=2,           # retiene 2 turnos de solapamiento al comprimir
+    ),
+    context_cache_config=ContextCacheConfig(
+        # Cachea los system prompts estáticos de los agentes con Gemini
+        min_tokens=2048,     # activa caché cuando el prompt supera 2k tokens (system prompts del orquestador y subagentes son >3k)
+        ttl_seconds=600,     # caché válido 10 minutos por sesión
+        cache_intervals=10,  # refresca el caché cada 10 invocaciones
+    ),
+)
+
+# ADK 2.0: los servicios (sesión, artifacts, memoria) ya no se pasan a App,
+# se conectan al ejecutar vía Runner.
 runner = Runner(
-    agent=root_agent,
-    app_name=APP_NAME,
+    app=adk_app,
     session_service=session_service,
     artifact_service=artifact_service,
+    memory_service=memory_service,   # memoria entre sesiones: persistencia de preferencias del usuario
 )
 
 # ── FastAPI app ────────────────────────────────────────────────────────────────
@@ -95,8 +141,8 @@ app.add_middleware(
 # ── Schemas ────────────────────────────────────────────────────────────────────
 
 class ChatRequest(BaseModel):
-    session_id: str
-    message: str
+    session_id: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
+    message: str = Field(min_length=1, max_length=4000)
 
 
 class ChatResponse(BaseModel):
@@ -108,14 +154,34 @@ class ChatResponse(BaseModel):
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
+def _session_user_id(session_id: str) -> str:
+    # Anonymous sessions do not share the ADK cross-session memory namespace.
+    # This is isolation, not authentication; public hosting still needs an identity layer.
+    return "anonymous_" + hashlib.sha256(session_id.encode("utf-8")).hexdigest()
+
+
+def _artifact_names_from_part(part) -> set[str]:
+    response = getattr(getattr(part, "function_response", None), "response", None)
+    def visit(value):
+        if isinstance(value, dict):
+            names = {value["artifact_filename"]} if isinstance(value.get("artifact_filename"), str) else set()
+            for child in value.values():
+                names.update(visit(child))
+            return names
+        if isinstance(value, list):
+            return set().union(*(visit(child) for child in value)) if value else set()
+        return set()
+    return visit(response)
+
+
 async def _ensure_session(session_id: str) -> None:
     """Crea la sesión ADK si no existe."""
     existing = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=session_id
+        app_name=APP_NAME, user_id=_session_user_id(session_id), session_id=session_id
     )
     if existing is None:
         await session_service.create_session(
-            app_name=APP_NAME, user_id=USER_ID, session_id=session_id
+            app_name=APP_NAME, user_id=_session_user_id(session_id), session_id=session_id
         )
 
 
@@ -1156,7 +1222,7 @@ async def chat(req: ChatRequest):
     # Asegurar sesión de ADK para poder sincronizar
     await _ensure_session(req.session_id)
     stored_session = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=req.session_id
+        app_name=APP_NAME, user_id=_session_user_id(req.session_id), session_id=req.session_id
     )
     if stored_session.state is None:
         stored_session.state = {}
@@ -1213,7 +1279,7 @@ async def chat(req: ChatRequest):
 
     # Snapshot del caché ANTES de este turno
     session_before = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=req.session_id
+        app_name=APP_NAME, user_id=_session_user_id(req.session_id), session_id=req.session_id
     )
     cache_before = _chart_cache(getattr(session_before, "state", {}) or {})
 
@@ -1226,15 +1292,17 @@ async def chat(req: ChatRequest):
     # Ejecutar agente
     final_text = ""
     ui_actions: list[dict] = []
+    referenced_artifacts: set[str] = set()
     try:
         async for event in runner.run_async(
-            user_id=USER_ID,
+            user_id=_session_user_id(req.session_id),
             session_id=req.session_id,
             new_message=user_msg,
         ):
             if event.content and event.content.parts:
                 for part in event.content.parts:
                     ui_actions.extend(_extract_actions_from_part(part))
+                    referenced_artifacts.update(_artifact_names_from_part(part))
             if event.is_final_response():
                 if event.content and event.content.parts:
                     for part in event.content.parts:
@@ -1256,23 +1324,31 @@ async def chat(req: ChatRequest):
                 artifacts=[],
                 session_id=req.session_id,
             )
-        raise HTTPException(status_code=500, detail=f"Error en el agente: {exc}")
+        logging.getLogger(__name__).exception("Fallo del agente")
+        raise HTTPException(status_code=500, detail="El agente no pudo completar la consulta.") from exc
 
     if not final_text:
         final_text = "El agente no generó respuesta de texto. Intenta reformular la pregunta."
 
     # Detectar artifacts NUEVOS en este turno
     session_after = await session_service.get_session(
-        app_name=APP_NAME, user_id=USER_ID, session_id=req.session_id
+        app_name=APP_NAME, user_id=_session_user_id(req.session_id), session_id=req.session_id
     )
     cache_after = _chart_cache(getattr(session_after, "state", {}) or {})
-    new_artifacts = sorted(cache_after - cache_before)
+    new_artifacts = sorted((cache_after - cache_before) | referenced_artifacts)
 
     # Sincronizar el estado de vuelta a local_context
     if session_after and session_after.state:
         for key in keys_to_sync:
             if key in session_after.state:
                 ctx[key] = session_after.state[key]
+
+    # Guardar sesión en memoria entre sesiones (preferencias del usuario)
+    if session_after:
+        try:
+            await memory_service.add_session_to_memory(session_after)
+        except Exception:
+            pass  # La memoria es best-effort; no romper la respuesta si falla
 
     # Anteponer la acción de navegación si existe
     if nav_action:
@@ -1299,7 +1375,7 @@ async def get_artifact(filename: str, session_id: str):
 
     artifact = await artifact_service.load_artifact(
         app_name=APP_NAME,
-        user_id=USER_ID,
+        user_id=_session_user_id(session_id),
         session_id=session_id,
         filename=filename,
     )

@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 
 from google.adk.agents import Agent
+from google.adk.tools import preload_memory
 
 from ..callbacks import after_tool, before_tool
 from ..tools import (
@@ -57,6 +58,13 @@ El state persiste entre turnos de la misma sesión:
 Cuando el usuario use referencias implícitas ("y Palmira?", "el año siguiente",
 "cómo va ahora?"), lee state antes de preguntar.
 
+## Memoria entre sesiones (cross-session memory)
+
+Al inicio de cada turno, el sistema carga automáticamente el contexto de
+conversaciones anteriores del mismo usuario. Si la memoria recuperada menciona
+una preferencia guardada (ej. "el usuario siempre quiere incidencia", "municipio
+de interés: Tuluá"), aplícala llamando a establecer_preferencia antes de responder.
+
 ## Guía rápida de tools
 
 | Pregunta del usuario                         | Tool                               |
@@ -68,6 +76,7 @@ Cuando el usuario use referencias implícitas ("y Palmira?", "el año siguiente"
 | "Resumen del Valle en 2022"                  | resumen_anio                       |
 | "¿Qué estábamos viendo?" / "¿Recuerdas?"    | mostrar_contexto                   |
 | "Siempre muéstrame en incidencia"            | establecer_preferencia             |
+| (automático al iniciar cada turno)           | preload_memory                     |
 | "¿Cuál es la población de Cali / del Valle?"| consultar_poblacion_municipio     |
 | "Población por ciclo de vida en Buga"        | consultar_poblacion_ciclo_vida     |
 | "Pirámide poblacional de Zarzal"             | consultar_piramide_poblacional     |
@@ -86,27 +95,36 @@ Cuando el usuario use referencias implícitas ("y Palmira?", "el año siguiente"
 # ------------------------------------------------------------------
 # Definición del agente
 # ------------------------------------------------------------------
-epidemio_agent = Agent(
-    name="epidemio_agent",
-    model=GEMINI_MODEL,
-    description=(
-        "Especialista en consultas epidemiológicas numéricas de dengue. "
-        "Activa para preguntas sobre casos confirmados, incidencia x100k hab., "
-        "rankings de municipios, series temporales o resúmenes anuales del Valle."
-    ),
-    instruction=INSTRUCCIONES,
-    tools=[
-        listar_municipios,
-        casos_por_municipio_anio,
-        top_municipios,
-        serie_temporal_municipio,
-        resumen_anio,
-        mostrar_contexto,
-        establecer_preferencia,
-        consultar_poblacion_municipio,
-        consultar_poblacion_ciclo_vida,
-        consultar_piramide_poblacional,
-    ],
-    before_tool_callback=before_tool,
-    after_tool_callback=after_tool,
-)
+# build_epidemio_agent() es una fábrica en vez de un Agent module-level
+# porque ADK no permite que la misma instancia de Agent tenga dos padres
+# (aquí: root_agent y epidemio_viz_parallel la necesitan cada uno por su
+# lado). Cada llamada crea una instancia nueva e independiente.
+def build_epidemio_agent(name: str = "epidemio_agent") -> Agent:
+    return Agent(
+        name=name,
+        model=GEMINI_MODEL,
+        description=(
+            "Especialista en consultas epidemiológicas numéricas de dengue. "
+            "Activa para preguntas sobre casos confirmados, incidencia x100k hab., "
+            "rankings de municipios, series temporales o resúmenes anuales del Valle."
+        ),
+        instruction=INSTRUCCIONES,
+        tools=[
+            preload_memory,              # carga preferencias de sesiones anteriores automáticamente
+            listar_municipios,
+            casos_por_municipio_anio,
+            top_municipios,
+            serie_temporal_municipio,
+            resumen_anio,
+            mostrar_contexto,
+            establecer_preferencia,
+            consultar_poblacion_municipio,
+            consultar_poblacion_ciclo_vida,
+            consultar_piramide_poblacional,
+        ],
+        before_tool_callback=before_tool,
+        after_tool_callback=after_tool,
+    )
+
+
+epidemio_agent = build_epidemio_agent()

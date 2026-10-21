@@ -1,0 +1,23 @@
+# Secrets and local runtime state
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+**/*.pem
+**/*.key
+.git
+.venv
+.uv-cache
+.uv-python
+.adk
+.claude
+__pycache__
+**/__pycache__
+.pytest_cache
+scratch
+notebooks
+*.zip
+*.docx
+*.pdf
+*.xlsx

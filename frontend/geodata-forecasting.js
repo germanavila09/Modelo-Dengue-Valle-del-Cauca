@@ -98,7 +98,7 @@
     const hist = [];
     for (let i = 0; i < 52; i++) {
       const seasonal = 60 + 35 * Math.sin((i / 52) * Math.PI * 2 - 1.2);
-      const noise = (Math.random() - 0.5) * 18;
+      const noise = (Math.sin(i * 12.9898) * 0.5) * 18;
       hist.push(Math.max(5, Math.round(seasonal + noise + i * 0.4)));
     }
     const fc = [], lo = [], hi = [];
@@ -202,6 +202,10 @@
 
   function init() {
     if (!document.getElementById('fc-models-grid')) return;
+    ['fc-municipio', 'fc-target', 'fc-ci'].forEach(id => {
+      const control = document.getElementById(id);
+      if (control) { control.disabled = true; control.title = 'No disponible: demostración sin modelos entrenados'; }
+    });
     renderCatalog();
     renderDetail();
     ['fc-horizonte', 'fc-municipio', 'fc-target', 'fc-ci'].forEach(id => {

@@ -10,7 +10,7 @@ Uso desde Python:
 from pathlib import Path
 
 from .config import ANIO, MUNICIPIO, RUTA_SALIDA
-from .db import cargar_datos, cargar_puntos_calor, crear_engine
+from .db import FuenteDatosNoDisponibleError, cargar_datos, cargar_puntos_calor, crear_engine
 from .mapa import generar_mapa_html
 from .modelo import cargar_serie_semanal, pronosticar_municipio, pronosticar_todos
 from .transform import calcular_priorizacion, construir_pivot, limpiar_datos
@@ -102,7 +102,13 @@ def ejecutar(anio=None, municipio=None, ruta_salida=None):
 
     # 4. Mapa HTML
     print("[4/5] Generando mapa HTML interactivo (cargando puntos de calor)...")
-    puntos_df = cargar_puntos_calor(engine)
+    advertencias = []
+    try:
+        puntos_df = cargar_puntos_calor(engine)
+    except FuenteDatosNoDisponibleError as exc:
+        puntos_df = None
+        advertencias.append(str(exc))
+        print(f"      AVISO: {exc}")
     ruta_mapa = generar_mapa_html(gdf, anios, ruta_salida, anio_default=anio, puntos_df=puntos_df)
 
     # 5. Resumen
@@ -118,6 +124,7 @@ def ejecutar(anio=None, municipio=None, ruta_salida=None):
         "priorizacion": priorizacion,
         "ruta_mapa": ruta_mapa,
         "ruta_graficas": ruta_graficas,
+        "advertencias": advertencias,
     }
 
 

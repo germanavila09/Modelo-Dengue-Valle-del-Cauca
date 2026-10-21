@@ -10,7 +10,7 @@ import os
 
 from google.adk.agents import Agent
 
-from .agents import epidemio_agent, ui_agent, viz_agent
+from .agents import epidemio_agent, epidemio_viz_parallel, ui_agent, viz_agent
 
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash-lite")
 
@@ -52,8 +52,9 @@ Usalo cuando el usuario quiera controlar la interfaz:
 2. Si la intencion es generar una grafica PNG, transfiere a viz_agent.
 3. Si la intencion es navegar o manipular componentes del observatorio,
    transfiere a ui_agent.
-4. Si el usuario pide datos y grafica en el mismo turno, prioriza los datos y
-   sugiere pedir la grafica despues.
+4. Si el usuario pide datos Y grafica en el mismo turno (ej: "dame el top y la
+   grafica", "serie en tabla y grafico", "visualiza y muestrame numeros"),
+   transfiere a epidemio_viz_parallel para ejecutarlos en paralelo.
 5. Para saludos o contexto general, responde directamente.
 6. Responde siempre en espanol.
 
@@ -74,6 +75,7 @@ root_agent = Agent(
         epidemio_agent,
         viz_agent,
         ui_agent,
+        epidemio_viz_parallel,   # datos + gráfica en paralelo
     ],
 )
 

@@ -45,9 +45,9 @@ def _preparar_heat_data(puntos_df):
     heat_data = {}
     for anio, grupo in puntos_df.groupby("anio"):
         anio_str = str(anio)
-        heat_data[f"{anio_str}_con_cali"] = grupo[["lat", "lng"]].values.tolist()
+        heat_data[f"{anio_str}_con_cali"] = grupo[["lat", "lng", "peso"]].values.tolist()
         sin_cali = grupo[grupo["mpio_ccdgo"].notna() & (grupo["mpio_ccdgo"] != "76001")]
-        heat_data[f"{anio_str}_sin_cali"] = sin_cali[["lat", "lng"]].values.tolist()
+        heat_data[f"{anio_str}_sin_cali"] = sin_cali[["lat", "lng", "peso"]].values.tolist()
     return heat_data
 
 
@@ -350,9 +350,9 @@ def generar_mapa_html(gdf, anios_disponibles, ruta_salida, anio_default, puntos_
                 showCoverageOnHover: false, chunkedLoading: true
             }});
             puntos.forEach(p => L.circleMarker([p[0], p[1]], {{
-                radius: 4, fillColor: '#c0392b', color: '#922b21',
+                radius: Math.min(12, 3 + Math.log2(Number(p[2]) || 1)), fillColor: '#c0392b', color: '#922b21',
                 weight: 0.5, fillOpacity: 0.8
-            }}).addTo(capaCluster));
+            }}).bindTooltip(formatNumber(p[2]) + ' casos agregados').addTo(capaCluster));
             capaCluster.addTo(map);
         }}
 

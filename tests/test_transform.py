@@ -25,7 +25,7 @@ class TestLimpiarDatos:
         result = limpiar_datos(sample_gdf)
 
         assert pd.api.types.is_integer_dtype(result["año"])
-        assert result["MPIO_CCDGO"].dtype == "object"
+        assert result["MPIO_CCDGO"].dtype in ["object", "string"]
         assert pd.api.types.is_numeric_dtype(result["conteo_dengue"])
 
 

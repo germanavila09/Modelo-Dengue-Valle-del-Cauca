@@ -1,111 +1,304 @@
-# Observatorio GeoSalud — Análisis Dengue Valle del Cauca
+# Observatorio GeoSalud — Asistente Epidemiológico con ADK
 
-Repositorio de análisis descriptivo espacial de casos de dengue por municipio en el departamento del Valle del Cauca (Colombia), 2019–2026.
-
-Los datos provienen de una base PostgreSQL/PostGIS con registros históricos de 42 municipios. El análisis genera gráficas descriptivas, tablas de priorización, modelos predictivos (NeuralProphet) y un dashboard HTML interactivo con filtros por año, variable y municipio.
-
-**Stack**: Python (pandas, geopandas, SQLAlchemy) | PostgreSQL/PostGIS | NeuralProphet (ML) | Leaflet.js (Frontend) | PyTorch (GPU)
+> **Sistema multiagente de vigilancia epidemiológica de dengue en el Valle del Cauca** (42 municipios · 2019–2026) construido sobre Google Agent Development Kit (ADK) y Gemini.
 
 ---
 
-## 📁 Estructura del Repositorio
+## ¿Qué es?
+
+El **Observatorio GeoSalud** es un dashboard epidemiológico interactivo que integra un agente de IA conversacional para responder preguntas en lenguaje natural sobre dengue en el departamento del Valle del Cauca, Colombia. El usuario puede pedir datos, visualizaciones y navegar la interfaz usando el chat — sin necesidad de conocer filtros o menús.
+
+**Casos de uso reales:**
+- *"¿Cuáles fueron los 10 municipios con mayor incidencia en 2023?"*
+- *"Muéstrame la serie histórica de Palmira y Tuluá comparadas"*
+- *"Abre el mapa coroplético de casos para 2024 sin Cali"*
+- *"¿Cómo está la población por ciclo de vida en Buga?"*
+
+---
+
+## Arquitectura multiagente (ADK)
+
+```
+┌───────────────────────────────────────────────────────────────────────┐
+│                         FRONTEND  (HTML + Leaflet.js)                 │
+│  Dashboard · Mapa coroplético · Geovisor · Tendencias · Demografía   │
+└──────────────────────────────────┬────────────────────────────────────┘
+                                   │ HTTP POST /chat
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                    FASTAPI  chatbot/server.py                         │
+│                                                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │          CAPA LOCAL (sin Gemini, cero latencia)                 │  │
+│  │  • Fuzzy matching de municipios (difflib)                       │  │
+│  │  • Extracción de año, top-N y métricas con regex               │  │
+│  │  • Respuestas directas a BD y generación de gráficas           │  │
+│  │  • Action chaining: datos + navegación en un mismo turno       │  │
+│  └────────────────────────────┬────────────────────────────────────┘  │
+│                               │ si no resuelve localmente             │
+│                               ▼                                       │
+│  ┌─────────────────────────────────────────────────────────────────┐  │
+│  │               CAPA ADK  (Google ADK + Gemini)                  │  │
+│  │                                                                 │  │
+│  │   ┌──────────────────────────────────────────────────────┐     │  │
+│  │   │         observatorio_orchestrator  (root_agent)      │     │  │
+│  │   │  Enruta solicitudes al subagente especializado.      │     │  │
+│  │   └──────────┬──────────────────┬────────────────┬───────┘     │  │
+│  │              │                  │                │             │  │
+│  │   ┌──────────▼───┐   ┌──────────▼────┐   ┌──────▼─────────┐  │  │
+│  │   │ epidemio_    │   │   viz_agent   │   │   ui_agent     │  │  │
+│  │   │   agent      │   │               │   │                │  │  │
+│  │   │ ─────────    │   │ ─────────     │   │ ─────────      │  │  │
+│  │   │ Datos        │   │ Gráficas PNG  │   │ Navegar        │  │  │
+│  │   │ numéricos    │   │ ADK Artifacts │   │ módulos,       │  │  │
+│  │   │ Demografía   │   │ (seaborn/     │   │ mapas y        │  │  │
+│  │   │ Rankings     │   │  matplotlib)  │   │ variables      │  │  │
+│  │   │ Series       │   │               │   │                │  │  │
+│  │   └──────────┬───┘   └──────────┬────┘   └──────┬─────────┘  │  │
+│  │              │                  │                │             │  │
+│  │   ┌──────────▼──────────────────▼────────────────▼──────────┐  │  │
+│  │   │              TOOLS (FunctionTools ADK)                   │  │  │
+│  │   │  listar_municipios · casos_por_municipio_anio           │  │  │
+│  │   │  top_municipios · serie_temporal_municipio              │  │  │
+│  │   │  resumen_anio · consultar_poblacion_municipio           │  │  │
+│  │   │  consultar_poblacion_ciclo_vida · consultar_piramide    │  │  │
+│  │   │  graficar_top_n · graficar_serie · mostrar_geovisor     │  │  │
+│  │   │  mostrar_mapa_coropletico · abrir_modulo_observatorio   │  │  │
+│  │   └──────────────────────────────┬───────────────────────────┘  │  │
+│  │                                  │                               │  │
+│  │   ┌──────────────────────────────▼───────────────────────────┐  │  │
+│  │   │         before_tool_callback / after_tool_callback       │  │  │
+│  │   │         InMemorySessionService · InMemoryArtifactService │  │  │
+│  │   └──────────────────────────────────────────────────────────┘  │  │
+│  └─────────────────────────────────────────────────────────────────┘  │
+└───────────────────────────────────────────────────────────────────────┘
+                                   │ SQL (SQLAlchemy + psycopg2)
+                                   ▼
+┌───────────────────────────────────────────────────────────────────────┐
+│                  PostgreSQL / PostGIS  (terrarIA.valle_mun)           │
+│         42 municipios · 2019–2026 · casos · incidencia · geom        │
+└───────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Stack tecnológico
+
+| Capa | Tecnología |
+|------|-----------|
+| LLM & Agentes | Google ADK · Gemini 2.5 Flash |
+| API backend | FastAPI + Uvicorn |
+| Base de datos | PostgreSQL 13+ · PostGIS · SQLAlchemy |
+| Datos espaciales | GeoPandas · Shapely |
+| Visualización | Matplotlib · Seaborn |
+| Frontend | HTML5 · Leaflet.js · JavaScript |
+| ML / Pronósticos | NeuralProphet · PyTorch |
+| Testing | Pytest |
+| Gestión de entorno | pip / uv · python-dotenv |
+
+---
+
+## Componentes ADK utilizados
+
+| Componente ADK | Uso en el proyecto |
+|----------------|-------------------|
+| `google.adk.agents.Agent` | Orquestador + 3 subagentes especializados |
+| `sub_agents` | Delegación a epidemio_agent, viz_agent, ui_agent |
+| `google.adk.tools.ToolContext` | Lectura/escritura de `state` entre turnos |
+| `before_tool_callback` | Validación y enriquecimiento antes de cada tool |
+| `after_tool_callback` | Logging y post-procesamiento de resultados |
+| `InMemorySessionService` | Persistencia de contexto dentro de la sesión |
+| `InMemoryArtifactService` | Almacenamiento y servicio de PNG generados |
+| `google.adk.runners.Runner` | Ejecución asíncrona del agente |
+| `google.genai.types.Content` | Construcción de mensajes usuario/modelo |
+
+---
+
+## Subagentes especializados
+
+### `epidemio_agent`
+Responde consultas numéricas y demográficas. Usa 10 tools conectadas a la BD.
+
+**Tools:**
+- `listar_municipios` — catálogo de los 42 municipios
+- `casos_por_municipio_anio` — casos e incidencia puntuales
+- `top_municipios` — ranking por casos o incidencia
+- `serie_temporal_municipio` — evolución histórica 2019–2026
+- `resumen_anio` — panorama departamental de un año
+- `consultar_poblacion_municipio` — población total, hombres y mujeres
+- `consultar_poblacion_ciclo_vida` — distribución por etapa de vida
+- `consultar_piramide_poblacional` — grupos quinquenales
+- `establecer_preferencia` — configura métrica por defecto (casos/incidencia)
+- `mostrar_contexto` — recupera el contexto de la sesión actual
+
+### `viz_agent`
+Genera imágenes PNG como ADK Artifacts. Implementa caché determinista para evitar regenerar gráficas idénticas.
+
+**Tools:**
+- `graficar_top_n` — barras horizontales top-N municipios
+- `graficar_top_n_incidencia` — por tasa por 100.000 hab.
+- `graficar_serie_municipio` — línea temporal de un municipio
+- `graficar_scatter_poblacion_incidencia` — scatter bivariate
+
+### `ui_agent`
+Controla el dashboard desde el chat. Emite acciones JSON que el frontend interpreta.
+
+**Tools:**
+- `mostrar_mapa_coropletico` — variable, año, incluir/excluir Cali
+- `mostrar_geovisor` — modo burbujas / calor / coroplético
+- `abrir_modulo_observatorio` — navegar a Panel, Indicadores, Tendencias, Demografía, Priorización
+
+---
+
+## Técnicas de ingeniería de prompts
+
+Cada subagente tiene instrucciones diseñadas para guiar el comportamiento del LLM de forma precisa y controlada:
+
+1. **Tabla de enrutamiento explícita** en el orquestador: mapea la intención del usuario al subagente correcto sin ambigüedad.
+2. **Reglas de uso de tools con ejemplos** en cada agente: el LLM sabe exactamente cuándo invocar cada función.
+3. **Memoria de sesión documentada**: las instrucciones describen las claves del `state` (`last_municipio`, `last_anio`, `metrica_preferida`) para que el LLM las use en referencias implícitas.
+4. **Regla de no alucinación explícita**: "Nunca inventes cifras. Usa siempre una tool para datos numéricos."
+5. **Respuesta estructurada por tipo de dato**: instrucciones distintas para población, incidencia, pirámide, etc.
+
+---
+
+## Características de implementación
+
+### Sistema de respuesta híbrido
+El servidor resuelve **primero en local** (sin llamar a Gemini) las consultas más frecuentes: top municipios, series temporales, casos puntuales, resúmenes anuales, y todas las acciones de UI. Solo las preguntas complejas o de lenguaje libre escalan al agente ADK.
+
+**Beneficios:**
+- Latencia ~0ms para consultas estructuradas
+- Tolerancia a errores de cuota de Gemini
+- Funciona en modo degradado sin API key
+
+### Fuzzy matching de municipios
+El preprocesamiento normaliza nombres con tildes, aliases comunes (`Buga` → `GUADALAJARA DE BUGA`), y usa `difflib.get_close_matches` para corregir errores ortográficos antes de consultar la BD.
+
+### Action chaining
+Una sola pregunta puede producir múltiples acciones. El servidor separa la intención de navegación de la intención de datos y emite ambas acciones en la misma respuesta.
+```json
+// "Muéstrame los datos de Cali 2024 y abre tendencias"
+{ "reply": "...", "actions": [{"type": "navigate", "section": "tendencias"}, ...] }
+```
+
+### Persistencia de contexto conversacional
+El `local_context` y `session.state` del ADK se sincronizan bidireccionalmente en cada turno, permitiendo referencias implícitas:
+```
+Usuario: "¿Cuántos casos tuvo Cali en 2024?"
+→ state: { last_municipio: "CALI", last_anio: 2024 }
+
+Usuario: "¿Y en 2023?"
+→ Usa state.last_municipio sin necesidad de repetir "Cali"
+```
+
+### Caché de artifacts
+Los PNG generados se indexan con nombres deterministas (`top10_incidencia_2024.png`). Si el mismo gráfico se solicita de nuevo, se sirve desde caché sin regenerar.
+
+---
+
+## Estructura del repositorio
 
 ```
 observatorio_geosalud/
-├── src/                        # Módulos core del pipeline
-│   ├── config.py              # Configuración (.env)
-│   ├── db.py                  # Conexión PostGIS
-│   ├── transform.py           # Limpieza, pivot, priorización
-│   ├── viz.py                 # Gráficas (matplotlib/seaborn)
-│   ├── mapa.py                # Generación del mapa HTML (Leaflet)
-│   ├── modelo.py              # NeuralProphet forecasts
-│   ├── pipeline.py            # Orquestación completa
-│   └── __init__.py
+├── chatbot/                        # Agente ADK + API
+│   ├── server.py                  # FastAPI + capa local + runner ADK
+│   └── observatorio_agent/
+│       ├── agent.py               # root_agent (orquestador)
+│       ├── agents/
+│       │   ├── epidemio_agent.py  # Subagente numérico / demográfico
+│       │   ├── viz_agent.py       # Subagente de visualización
+│       │   └── ui_agent.py        # Subagente de interfaz
+│       ├── tools.py               # Tools epidemiológicas (BD)
+│       ├── viz_tools.py           # Tools de gráficas (ADK Artifacts)
+│       ├── ui_tools.py            # Tools de UI (acciones JSON)
+│       ├── ui_actions.py          # Constructores de acciones frontend
+│       └── callbacks.py           # before_tool / after_tool callbacks
 │
-├── scripts/                    # Scripts ejecutables
-│   ├── run_all.py            # Pipeline completo
-│   ├── exportar_mapa.py       # Solo mapa interactivo
-│   ├── resumen.py             # Estadísticas en consola
-│   ├── verificar_conexion.py  # Check BD
-│   └── exportar_datos_obs.py  # Export para observatorio
+├── src/                           # Pipeline de datos
+│   ├── config.py                  # Variables de entorno
+│   ├── db.py                      # Conexión PostGIS
+│   ├── transform.py               # Limpieza y priorización
+│   ├── viz.py                     # Gráficas matplotlib
+│   ├── mapa.py                    # Mapa HTML Leaflet
+│   ├── modelo.py                  # NeuralProphet forecasting
+│   └── pipeline.py                # Orquestación completa
 │
-├── frontend/                   # Dashboard HTML (Leaflet)
-│   ├── Geodata Salud.html     # Dashboard principal
-│   ├── geodata-app.js         # Lógica JS
-│   └── geodata-data.js        # Mock data
+├── frontend/                      # Dashboard HTML + JS
+│   ├── Geodata Salud.html         # Dashboard principal (Leaflet)
+│   ├── geodata-app.js             # Lógica del dashboard
+│   └── geodata-data.js            # Datos precalculados para JS
 │
-├── notebooks/                  # Análisis exploratorio
-│   ├── analisis_dengue.ipynb  # Notebook principal
-│   └── archivo_original.ipynb # Versión original
+├── scripts/                       # Scripts de ejecución
+│   ├── run_all.py                 # Pipeline completo
+│   └── verificar_conexion.py      # Check de BD
 │
-├── tests/                      # Tests unitarios
-│   ├── __init__.py
+├── tests/                         # Tests unitarios
 │   ├── test_db.py
 │   ├── test_transform.py
 │   └── test_pipeline.py
 │
-├── docs/                       # Documentación
-│   ├── SETUP.md               # Instrucciones de instalación
-│   ├── ARCHITECTURE.md        # Arquitectura del proyecto
-│   └── API.md                 # Referencia de módulos
+├── docs/                          # Documentación técnica
+│   ├── ARCHITECTURE.md
+│   ├── SETUP.md
+│   └── API.md
 │
-├── outputs/                    # Archivos generados (no se sube a git)
-│   ├── graficas/              # Gráficas PNG/SVG
-│   ├── lightning_logs/        # Logs de entrenamiento PyTorch
-│   └── *.csv                  # CSVs exportados
+├── notebooks/                     # Análisis exploratorio
+│   └── analisis_dengue.ipynb
 │
-├── .env                        # Credenciales locales (no se sube)
-├── .env.example               # Template de configuración
-├── .gitignore
+├── .env                           # Credenciales (no en git)
+├── .env.example                   # Template
 ├── requirements.txt
-├── setup.py
+├── pyproject.toml
 └── README.md
 ```
 
 ---
 
-## ⚡ Quick Start
+## Instalación y arranque
+
+### Prerrequisitos
+- Python 3.10+
+- PostgreSQL 13+ con PostGIS y datos en `public.valle_mun`
+- API Key de Google AI Studio ([aistudio.google.com/apikey](https://aistudio.google.com/apikey))
 
 ### 1. Clonar y configurar
 
 ```bash
-git clone https://github.com/germanavila09/Modelo-Dengue-Valle-del-Cauca.git
+git clone <repo-url>
 cd observatorio_geosalud
-
-# Copiar template de configuración
 cp .env.example .env
 ```
 
-### 2. Editar `.env` con credenciales de BD
+### 2. Variables de entorno (`.env`)
 
 ```env
-# Database
+# Base de datos
 DB_HOST=localhost
 DB_PORT=5432
-DB_NAME=dengue
+DB_NAME=terrarIA
 DB_USER=postgres
 DB_PASSWORD=tu_contraseña
 DB_SCHEMA=public
 DB_TABLE=valle_mun
 
-# Defaults
-ANIO_DEFAULT=2024
-MUNICIPIO_DEFAULT=CALI
-RUTA_SALIDA=outputs
+# Gemini
+GOOGLE_GENAI_USE_VERTEXAI=FALSE
+GOOGLE_API_KEY=tu_api_key_aqui
+GEMINI_MODEL=gemini-2.5-flash
+
+# Servidor
+CHATBOT_PORT=8080
 ```
 
 ### 3. Instalar dependencias
 
 ```bash
-# Crear entorno virtual (recomendado)
-python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
-
-# Instalar requisitos
+# Con pip
 pip install -r requirements.txt
 
-# (Opcional) PyTorch con CUDA para GPU
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu124
+# Con uv (recomendado)
+uv sync
 ```
 
 ### 4. Verificar conexión a BD
@@ -114,341 +307,112 @@ pip install torch torchvision torchaudio --index-url https://download.pytorch.or
 python scripts/verificar_conexion.py
 ```
 
-### 5. Ejecutar análisis
+### 5. Levantar el servidor
 
 ```bash
-# Análisis completo
-python scripts/run_all.py
+cd chatbot
+uvicorn server:app --host 0.0.0.0 --port 8080 --reload
+```
 
-# Con año específico
-python scripts/run_all.py --anio 2023
+El servidor queda disponible en:
+- API: `http://localhost:8080`
+- Docs interactivos: `http://localhost:8080/docs`
+- Health check: `http://localhost:8080/health`
 
-# Con municipio específico
-python scripts/run_all.py --anio 2023 --municipio PALMIRA
+### 6. Abrir el dashboard
+
+Abre `frontend/Geodata Salud.html` en el navegador. El chat en la esquina inferior derecha conecta al servidor automáticamente.
+
+---
+
+## API Reference
+
+### `POST /chat`
+
+```json
+// Request
+{ "session_id": "abc123", "message": "Top 5 municipios con más casos en 2024" }
+
+// Response
+{
+  "reply": "Los 5 municipios con más casos en 2024 fueron:\n1. Cali: 4.823 casos\n...",
+  "artifacts": ["top5_casos_2024.png"],
+  "session_id": "abc123",
+  "actions": [{ "type": "show_top", "anio": 2024, "metrica": "casos" }]
+}
+```
+
+### `GET /artifacts/{filename}?session_id=...`
+
+Sirve las imágenes PNG generadas por el agente como ADK Artifacts.
+
+### `GET /health`
+
+```json
+{ "status": "ok", "agent": "observatorio_orchestrator", "app": "observatorio_geosalud" }
 ```
 
 ---
 
+## Esquema de BD requerido
 
+```sql
+CREATE TABLE public.valle_mun (
+    MPIO_CCDGO        text,
+    MPIO_CNMBR        text,
+    "año"             integer,
+    "población"       bigint,
+    conteo_dengue     integer,
+    incidencia_dengue numeric,
+    geom              geometry(MultiPolygon, 3857)
+);
+
+-- Índices
+CREATE INDEX idx_valle_mun_nombre ON public.valle_mun(MPIO_CNMBR);
+CREATE INDEX idx_valle_mun_anio   ON public.valle_mun("año");
+CREATE INDEX idx_valle_mun_geom   ON public.valle_mun USING GIST(geom);
+```
+
+Cobertura: **42 municipios** · **2019–2026** · **+166.000 casos registrados**
 
 ---
 
-## 📊 Uso
-
-### Scripts principales
-
-| Script | Descripción |
-|--------|-------------|
-| `run_all.py` | Pipeline completo: carga → transform → gráficas → mapa → pronósticos |
-| `verificar_conexion.py` | Verifica conexión BD y estructura de tabla |
-| `resumen.py` | Resumen estadístico en consola |
-| `exportar_mapa.py` | Genera solo el mapa HTML interactivo |
-| `exportar_datos_obs.py` | Exporta datos para el observatorio |
-
-#### Ejemplos:
-
-```bash
-# Análisis completo para año por defecto (ANIO_DEFAULT)
-python scripts/run_all.py
-
-# Año específico
-python scripts/run_all.py --anio 2023
-
-# Con municipio específico para serie temporal
-python scripts/run_all.py --anio 2023 --municipio PALMIRA
-
-# Solo pronósticos
-python scripts/run_all.py --forecast --todos
-
-# Ver estadísticas rápidas
-python scripts/resumen.py
-
-# Exportar solo mapa
-python scripts/exportar_mapa.py --anio 2024
-```
-
-### Notebook (`analisis_dengue.ipynb`)
-
-Notebook Jupyter con análisis exploratorio sección-por-sección:
-
-| Sección | Output |
-|---------|--------|
-| Cargar datos | GeoDataFrame desde PostgreSQL |
-| Descriptivo general | Resumen estadístico, nulos |
-| Casos por año | Gráfica barras |
-| Incidencia por año | Gráfica incidencia × 100k hab |
-| Top municipios | Ranking por casos absolutos |
-| Top por incidencia | Ranking por tasa |
-| Pivote & priorización | Tabla municipio × año |
-| Población vs Incidencia | Scatter plot |
-| Serie histórica | Tendencia municipal |
-| Mapa interactivo | HTML autocontenido (Leaflet) |
-
-```bash
-jupyter lab notebooks/analisis_dengue.ipynb
-```
-
-### Dashboard HTML
-
-Abrir el dashboard interactivo en navegador:
-
-```bash
-# Windows
-start "frontend/Geodata Salud.html"
-
-# macOS
-open "frontend/Geodata Salud.html"
-
-# Linux
-xdg-open "frontend/Geodata Salud.html"
-```
-
-**Características del dashboard:**
-- 📍 Mapa coroplético (municipios coloreados por variable)
-- 🔥 Mapa de calor (166k casos puntuales)
-- 🔗 Cluster (agrupación de casos)
-- 🎚️ Filtros: Año, Variable (Casos/Incidencia), Con/Sin Cali
-- 📊 Panel de indicadores (total casos, incidencia promedio, municipios críticos)
-
----
-
-## 🛠️ Desarrollo
-
-### Instalar en modo editable + dev dependencies
-
-```bash
-# Instalar como paquete editable
-pip install -e .
-
-# Instalar con extras para desarrollo (cuando esté disponible)
-# pip install -e ".[dev]"
-```
-
-### Ejecutar tests
+## Tests
 
 ```bash
 # Todos los tests
 pytest
 
 # Con coverage
-pytest --cov=src
+pytest --cov=src --cov-report=term-missing
 
-# Modo verbose
-pytest -v
-
-# Solo un archivo
-pytest tests/test_db.py
-```
-
-### Estructura de módulos
-
-#### `src/config.py`
-Lee variables desde `.env`. Expone: `DB_CONFIG`, `SCHEMA`, `TABLE`, `ANIO`, `MUNICIPIO`, `RUTA_SALIDA`.
-
-#### `src/db.py`
-- `crear_engine()` — SQLAlchemy engine
-- `cargar_datos(engine)` — GeoDataFrame desde `valley_mun`
-- `cargar_puntos_calor(engine)` — Lat/lng de casos puntuales
-
-#### `src/transform.py`
-- `limpiar_datos(gdf)` — Normalización y encoding
-- `construir_pivot(gdf)` — Tabla municipio × año
-- `calcular_priorizacion(pivot)` — Ranking histórico
-
-#### `src/viz.py`
-- `graficar_casos_por_anio(gdf)` — Barras
-- `graficar_incidencia_por_anio(gdf)` — Incidencia × 100k
-- `graficar_top_municipios(gdf, anio)` — Top N por casos
-- `graficar_top_municipios_incidencia(gdf, anio)` — Top N por tasa
-- `graficar_heatmap(pivot)` — Heatmap año × municipio
-- `graficar_scatter_poblacion_incidencia(gdf, anio)` — Scatter
-- `graficar_serie_municipio(pivot, municipio)` — Serie temporal
-
-#### `src/mapa.py`
-- `generar_mapa_html(gdf, anios, ruta_salida)` — HTML Leaflet con:
-  - **Modo coroplético** — municipios coloreados
-  - **Modo mapa de calor** — 166k puntos
-  - **Modo cluster** — agrupación
-  - Filtros dinámicos (año, variable, Cali)
-  - Popup con riesgo, población, % del total
-
-#### `src/modelo.py`
-Modelos predictivos con NeuralProphet:
-- `cargar_serie_semanal(engine, mpio_ccdgo)` — Agrega a nivel semanal
-- `pronosticar_municipio(engine, mpio_ccdgo, periodos, accelerator)` — Pronóstico individual
-- `pronosticar_todos(engine, periodos, accelerator)` — Todos los 42 municipios
-
-#### `src/pipeline.py`
-- `ejecutar(anio, municipio, ruta_salida)` — Orquesta análisis completo
-- `ejecutar_forecast(anio, municipio, todos, periodos, accelerator)` — Solo pronósticos
-
-### Agregar un nuevo gráfico
-
-1. Crear función en `src/viz.py`:
-```python
-def graficar_nuevo(gdf, anio):
-    fig, ax = plt.subplots(figsize=(10, 6))
-    # ... tu lógica
-    return fig
-```
-
-2. Importar en `src/pipeline.py`:
-```python
-from .viz import graficar_nuevo
-```
-
-3. Llamar en `ejecutar()`:
-```python
-_guardar(graficar_nuevo(gdf, anio), ruta_graficas / "nuevo.png")
+# Solo tests de transformación
+pytest tests/test_transform.py -v
 ```
 
 ---
 
-## 📈 Requisitos del Sistema
+## Troubleshooting
 
-- **Python**: 3.10+
-- **PostgreSQL**: 13+ con extensión PostGIS
-- **RAM**: 4+ GB (8+ GB recomendado para ML)
-- **GPU** (opcional): NVIDIA con CUDA 12.4+ para acelerar pronósticos
+**`No es posible conectar con el servidor remoto`**
+→ El servidor no está corriendo. Ejecuta: `uvicorn server:app --port 8080 --reload` desde `chatbot/`.
 
-### Tabla PostgreSQL requerida
+**`GOOGLE_API_KEY not set`**
+→ El agente corre en modo local (solo BD). Para activar Gemini, agrega la key en `.env`.
 
-```sql
-CREATE TABLE public.valle_mun (
-    MPIO_CCDGO      text,
-    MPIO_CNMBR      text,
-    año             integer,
-    población       bigint,
-    conteo_dengue   integer,
-    incidencia_dengue numeric,
-    geom            geometry(MultiPolygon, 3857)
-);
-
--- Índices recomendados
-CREATE INDEX idx_valle_mun_mpio ON public.valle_mun(MPIO_CCDGO);
-CREATE INDEX idx_valle_mun_anio ON public.valle_mun(año);
-CREATE INDEX idx_valle_mun_geom ON public.valle_mun USING GIST(geom);
-```
-
-Cobertura: **42 municipios**, **2019–2026**.
-
----
-
-## 📦 Outputs Generados
-
-Archivos guardados en `outputs/` (excluido de git):
-
-```
-outputs/
-├── graficas/
-│   ├── casos_por_anio.png
-│   ├── incidencia_por_anio.png
-│   ├── top_municipios_2024.png
-│   ├── top_incidencia_2024.png
-│   ├── heatmap.png
-│   ├── scatter_poblacion_2024.png
-│   └── serie_MUNICIPIO.png
-├── lightning_logs/          # Logs PyTorch
-│   ├── version_0/
-│   ├── version_1/
-│   └── ...
-├── priorizacion_municipios.csv
-├── mapa_actual.html
-└── forecast_municipios.csv  # (si --forecast)
-```
-
----
-
-## 🔗 Arquitectura y Flujo
-
-```
-PostgreSQL (BD)
-    ↓
-db.py: cargar_datos() → GeoDataFrame
-    ↓
-transform.py: limpiar_datos() → normalize
-    ↓
-├─→ viz.py: generar gráficas → PNG
-├─→ mapa.py: generar HTML → Leaflet
-└─→ modelo.py: NeuralProphet → Pronósticos
-    ↓
-outputs/ ← todos los archivos generados
-    ↓
-pipeline.py: orquesta todo
-    ↓
-scripts/run_all.py ← punto de entrada principal
-```
-
----
-
-## 📝 Variables de Entorno
-
-```env
-# Conexión BD (requerido)
-DB_HOST=localhost
-DB_PORT=5432
-DB_NAME=dengue
-DB_USER=postgres
-DB_PASSWORD=
-
-# Esquema y tabla (requerido)
-DB_SCHEMA=public
-DB_TABLE=valle_mun
-
-# Defaults (recomendado)
-ANIO_DEFAULT=2024
-MUNICIPIO_DEFAULT=CALI
-RUTA_SALIDA=outputs
-```
-
----
-
-## 📚 Documentación Adicional
-
-- [SETUP.md](docs/SETUP.md) — Instalación detallada
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md) — Arquitectura del proyecto
-- [API.md](docs/API.md) — Referencia de funciones (auto-generada)
-
----
-
-## 🐛 Troubleshooting
-
-### Error: "No module named 'psycopg2'"
+**`No module named 'psycopg2'`**
 ```bash
 pip install psycopg2-binary
 ```
 
-### Error: "Connection refused" a PostgreSQL
-- Verificar que PostgreSQL está corriendo
-- Comprobar host/port/usuario en `.env`
-- Ejecutar: `python scripts/verificar_conexion.py`
-
-### Error: "CUDA out of memory" (ML)
-```bash
-# Usar CPU en lugar de GPU
-python scripts/run_all.py --forecast --accelerator cpu
-```
-
-### Las gráficas no se generan
-- Verificar que `outputs/graficas/` existe
-- Comprobar permisos de escritura
-- Ver logs en consola
+**`No se encontró la columna de año`**
+→ La columna en tu BD puede llamarse `año`, `aÃ±o` o `anio`. El servidor detecta automáticamente las tres variantes.
 
 ---
 
-## 📄 Licencia
+## Créditos
 
-[Especificar licencia]
+Desarrollado por **Germán Ávila** como proyecto del **Curso ADK - Fundamentos de IA (T26475)**.
 
----
-
-## 👤 Autores
-
-- Germán Avila (germanavila09)
-- [Otros contribuyentes]
-
----
-
-## 📧 Contacto
-
-[Email o canal de contacto]
+Datos de dengue: SIVIGILA / Secretaría de Salud del Valle del Cauca.  
+Cartografía: DANE — Marco Geoestadístico Nacional.

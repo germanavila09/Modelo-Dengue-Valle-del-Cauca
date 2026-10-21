@@ -71,6 +71,18 @@ let CHORO_VAR = 'incidencia_dengue';
 let CHORO_CALI = false;
 let chorLegend = null;
 
+// Climate state
+let climaMap = null;
+let climaMapLayers = [];
+let CLIMA_YEAR = 2024;
+let CLIMA_MONTH = 1;
+let CLIMA_VAR = 'total_precipitation';
+let CLIMA_CALI = true;
+let climaLegend = null;
+let climaChartInstance = null;
+let SELECTED_CLIMA_MUN = '76001';
+
+
 function t(k) { return I18N[LANG][k] || k; }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -91,10 +103,11 @@ function navigate(section) {
   if (el) el.classList.add('active');
   const nav = document.querySelector(`.nav-item[data-section="${section}"]`);
   if (nav) nav.classList.add('active');
-  const titles = { hexagonos: 'Hexágonos', aede: 'AEDE', forecasting: 'IA & ML Forecasting', chatbot: 'Asistente IA' };
+  const titles = { hexagonos: 'Hexágonos', aede: 'AEDE', forecasting: 'IA & ML Forecasting', chatbot: 'Asistente IA', clima: 'Datos Climáticos' };
   document.getElementById('header-title').textContent = titles[section] || t(section);
   if (section === 'geovisor' && mapInstance) { setTimeout(() => mapInstance.invalidateSize(), 100); }
   if (section === 'demografia' && demoMapInstance) { setTimeout(() => demoMapInstance.invalidateSize(), 100); }
+  if (section === 'clima' && climaMap) { setTimeout(() => climaMap.invalidateSize(), 100); }
   // Render charts AFTER section is visible — setTimeout ensures full CSS layout
   setTimeout(() => {
     if (section === 'indicadores') renderIndicadores();
@@ -103,6 +116,7 @@ function navigate(section) {
     if (section === 'dashboard') renderDashboard();
     if (section === 'demografia') renderDemografia();
     if (section === 'reporte') renderReporte();
+    if (section === 'clima') { initClimaMap(); renderClimaChart(); }
     if (section === 'forecasting' && window.refreshForecastingModule) window.refreshForecastingModule();
   }, 50);
 }
@@ -642,156 +656,48 @@ function renderScatter() {
 }
 
 // ─── Weekly Series Helper ─────────────────────────────────────────────────────
+// Weekly observations must be supplied explicitly; annual totals cannot reconstruct them.
+// GEOSALUD_WEEKLY[code][year] = {cases: [number|null, ...], complete: boolean,
+//   source: string, cutoff: string, validated: true}; null means not reported.
 function getWeeklySeries(munCode, year) {
-  const munData = getByMun(munCode);
-  const yearData = munData.find(d => d.año === year);
-  const totalCases = yearData?.conteo_dengue || 0;
-  const population = yearData?.población || yearData?.poblacion || 100000;
-
-  // Bimodal seasonal curve typical for Valle del Cauca (peaks around wk 16 and wk 40)
-  const seasonalCurve = [];
-  let sumCurve = 0;
-  for (let w = 1; w <= 52; w++) {
-    const peak1 = Math.exp(-Math.pow((w - 16) / 6, 2));
-    const peak2 = 0.7 * Math.exp(-Math.pow((w - 40) / 8, 2));
-    const baseline = 0.15;
-    const val = baseline + peak1 + peak2;
-    seasonalCurve.push(val);
-    sumCurve += val;
-  }
-  const P = seasonalCurve.map(v => v / sumCurve);
-
-  const pseudoRandom = (w) => {
-    const x = Math.sin(year * 100 + w) * 10000;
-    return x - Math.floor(x);
-  };
-
-  const cases = [];
-  const incidence = [];
-
-  for (let w = 1; w <= 52; w++) {
-    const noise = 1 + (pseudoRandom(w) - 0.5) * 0.3;
-    const weekShare = P[w - 1] * noise;
-    const cVal = Math.max(0, Math.round(totalCases * weekShare));
-    cases.push(cVal);
-
-    const iVal = population > 0 ? (cVal / population) * 100000 : 0;
-    incidence.push(parseFloat(iVal.toFixed(2)));
-  }
-
-  return { cases, incidence };
+  const annual = getByMun(munCode).find(d => d.año === year);
+  const record = window.GEOSALUD_WEEKLY?.[munCode]?.[year];
+  const missing = reason => ({ cases: Array(53).fill(null), incidence: Array(53).fill(null),
+    available: false, complete: false, reason });
+  if (!record || record.validated !== true || !record.source || !record.cutoff)
+    return missing('No hay datos semanales validados para este municipio y año.');
+  if (!Array.isArray(record.cases) || ![52, 53].includes(record.cases.length) ||
+      record.cases.some(v => v !== null && (!Number.isInteger(v) || v < 0)))
+    return missing('La serie semanal no cumple el formato requerido.');
+  if (record.complete && (record.cases.some(v => v === null) || !annual ||
+      record.cases.reduce((a, b) => a + b, 0) !== annual.conteo_dengue))
+    return missing('La serie semanal completa no coincide con el total anual.');
+  const population = annual?.población ?? annual?.poblacion;
+  const cases = record.cases.slice();
+  while (cases.length < 53) cases.push(null);
+  return { cases, incidence: cases.map(v => v === null || !(population > 0) ? null : v / population * 100000),
+    available: cases.some(v => v !== null), complete: record.complete === true,
+    source: record.source, cutoff: record.cutoff };
 }
 
-// ─── Endemic Channel Logic ───────────────────────────────────────────────────
 function calculateEndemicChannel(munCode, selectedYear, metric = 'conteo_dengue') {
-  const munData = getByMun(munCode);
-
-  // Use historical years (excluding selected year and 2026/future if not fully recorded)
-  const historicalYearsData = munData.filter(d => d.año !== selectedYear && d.año <= 2025);
-
-  // Bimodal seasonal curve typical for Valle del Cauca (peaks around wk 16 and wk 40)
-  const seasonalCurve = [];
-  let sumCurve = 0;
-  for (let w = 1; w <= 52; w++) {
-    const peak1 = Math.exp(-Math.pow((w - 16) / 6, 2));
-    const peak2 = 0.7 * Math.exp(-Math.pow((w - 40) / 8, 2));
-    const baseline = 0.15;
-    const val = baseline + peak1 + peak2;
-    seasonalCurve.push(val);
-    sumCurve += val;
-  }
-
-  const P = seasonalCurve.map(v => v / sumCurve);
-  const historicalWeeklySeries = [];
-
-  historicalYearsData.forEach((d, yrIdx) => {
-    const annualTotal = d.conteo_dengue;
-    const population = d.población || d.poblacion || 100000;
-    const weeklyValues = [];
-    const pseudoRandom = (seed) => {
-      const x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    };
-
-    for (let w = 1; w <= 52; w++) {
-      const seed = yrIdx * 52 + w;
-      const noise = 1 + (pseudoRandom(seed) - 0.5) * 0.4;
-      const weekShare = P[w - 1] * noise;
-      const cVal = Math.max(0, Math.round(annualTotal * weekShare));
-
-      if (metric === 'incidencia_dengue') {
-        const iVal = population > 0 ? (cVal / population) * 100000 : 0;
-        weeklyValues.push(iVal);
-      } else {
-        weeklyValues.push(cVal);
-      }
-    }
-    historicalWeeklySeries.push(weeklyValues);
-  });
-
-  if (historicalWeeklySeries.length === 0) {
-    const dummySeries = [];
-    const base = munData.find(d => d.año === selectedYear) || { conteo_dengue: 100, población: 100000 };
-    for (let y = 0; y < 3; y++) {
-      const weeklyValues = [];
-      for (let w = 1; w <= 52; w++) {
-        const cVal = Math.round(base.conteo_dengue * P[w - 1] * (0.8 + y * 0.2));
-        if (metric === 'incidencia_dengue') {
-          const basePop = base.población || base.poblacion || 100000;
-          const iVal = basePop > 0 ? (cVal / basePop) * 100000 : 0;
-          weeklyValues.push(iVal);
-        } else {
-          weeklyValues.push(cVal);
-        }
-      }
-      dummySeries.push(weeklyValues);
-    }
-    historicalWeeklySeries.push(...dummySeries);
-  }
-
-  const q1 = []; // 25th percentile (Exito)
-  const q2 = []; // 50th percentile (Seguridad)
-  const q3 = []; // 75th percentile (Alerta)
-
-  for (let w = 0; w < 52; w++) {
-    const weekVals = historicalWeeklySeries.map(series => series[w]).sort((a, b) => a - b);
-    const getPercentile = (arr, p) => {
-      const idx = (arr.length - 1) * p;
-      const base = Math.floor(idx);
-      const rest = idx - base;
-      if (arr[base + 1] !== undefined) {
-        return arr[base] + rest * (arr[base + 1] - arr[base]);
-      }
-      return arr[base];
-    };
-
-    const isInc = metric === 'incidencia_dengue';
-    q1.push(isInc ? parseFloat(getPercentile(weekVals, 0.25).toFixed(2)) : Math.round(getPercentile(weekVals, 0.25)));
-    q2.push(isInc ? parseFloat(getPercentile(weekVals, 0.50).toFixed(2)) : Math.round(getPercentile(weekVals, 0.50)));
-    q3.push(isInc ? parseFloat(getPercentile(weekVals, 0.75).toFixed(2)) : Math.round(getPercentile(weekVals, 0.75)));
-  }
-
-  const selectedYearData = munData.find(d => d.año === selectedYear) || { conteo_dengue: 0, población: 100000 };
-  const currentWeekly = [];
-  const pseudoRandomCurrent = (w) => {
-    const x = Math.sin(selectedYear * 100 + w) * 10000;
-    return x - Math.floor(x);
+  const field = metric === 'incidencia_dengue' ? 'incidence' : 'cases';
+  const history = getByMun(munCode).filter(d => d.año < selectedYear)
+    .map(d => getWeeklySeries(munCode, d.año)).filter(s => s.available && s.complete);
+  const current = getWeeklySeries(munCode, selectedYear);
+  const percentile = (values, p) => {
+    const sorted = values.slice().sort((a, b) => a - b);
+    const position = (sorted.length - 1) * p, lower = Math.floor(position);
+    return sorted[lower] + (sorted[Math.ceil(position)] - sorted[lower]) * (position - lower);
   };
-
-  for (let w = 1; w <= 52; w++) {
-    const noise = 1 + (pseudoRandomCurrent(w) - 0.5) * 0.3;
-    const weekShare = P[w - 1] * noise;
-    const cVal = Math.max(0, Math.round(selectedYearData.conteo_dengue * weekShare));
-    if (metric === 'incidencia_dengue') {
-      const selectedPop = selectedYearData.población || selectedYearData.poblacion || 100000;
-      const iVal = selectedPop > 0 ? (cVal / selectedPop) * 100000 : 0;
-      currentWeekly.push(parseFloat(iVal.toFixed(2)));
-    } else {
-      currentWeekly.push(cVal);
-    }
-  }
-
-  return { success: q1, safety: q2, alert: q3, current: currentWeekly };
+  const band = p => Array.from({length: 53}, (_, week) => {
+    const values = history.map(s => s[field][week]).filter(Number.isFinite);
+    return values.length >= 3 ? percentile(values, p) : null;
+  });
+  const alert = band(0.75);
+  return {success: band(0.25), safety: band(0.5), alert, current: current[field],
+    available: current.available && alert.some(Number.isFinite),
+    reason: !current.available ? current.reason : 'Se requieren al menos tres años previos completos por semana.'};
 }
 
 // ─── Tendencias ───────────────────────────────────────────────────────────────
@@ -862,7 +768,7 @@ function renderTendencias() {
     const title1 = TENDENCIA_METRIC === 'conteo_dengue'
       ? 'Comparativo Anual Intermunicipal (Casos)'
       : 'Comparativo Anual Intermunicipal (Incidencia ×100k)';
-    document.getElementById('title-tendencias-1').textContent = title1;
+    document.getElementById('title-tendencias-1').textContent = title1 + (TENDENCIA_SCALE === 'semanal' && !getWeeklySeries(SELECTED_MUN, SELECTED_YEAR).available ? ' · Sin datos semanales' : '');
 
     if (ctx1) {
       const yLabel = TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
@@ -956,10 +862,10 @@ function renderTendencias() {
     const title1 = TENDENCIA_METRIC === 'conteo_dengue'
       ? `Comparativo Semanal Interanual (Casos) — ${selectedMunName}`
       : `Comparativo Semanal Interanual (Incidencia ×100k) — ${selectedMunName}`;
-    document.getElementById('title-tendencias-1').textContent = title1;
+    document.getElementById('title-tendencias-1').textContent = title1 + (TENDENCIA_SCALE === 'semanal' && !getWeeklySeries(SELECTED_MUN, SELECTED_YEAR).available ? ' · Sin datos semanales' : '');
 
     if (ctx1) {
-      const weekLabels = Array.from({ length: 52 }, (_, i) => `${i + 1}`);
+      const weekLabels = Array.from({ length: 53 }, (_, i) => `${i + 1}`);
       const compareYears = [2023, 2024, 2025, 2026];
       const yearColors = {
         2023: '#f87171',
@@ -1006,12 +912,13 @@ function renderTendencias() {
     }
 
     // 2. Chart 2: Canal Endémico Semanal
-    const title2 = `Canal Endémico Semanal — ${selectedMunName} (${SELECTED_YEAR})`;
+    const weeklyAvailable = getWeeklySeries(SELECTED_MUN, SELECTED_YEAR).available;
+    const title2 = weeklyAvailable ? `Canal Endémico Semanal — ${selectedMunName} (${SELECTED_YEAR})` : 'Sin registros semanales validados';
     document.getElementById('title-tendencias-2').textContent = title2;
 
     if (ctx2) {
       const channel = calculateEndemicChannel(SELECTED_MUN, SELECTED_YEAR, TENDENCIA_METRIC);
-      const weekLabels = Array.from({ length: 52 }, (_, i) => `${i + 1}`);
+      const weekLabels = Array.from({ length: 53 }, (_, i) => `${i + 1}`);
       const yLabel = TENDENCIA_METRIC === 'conteo_dengue' ? 'Casos' : 'Incidencia x100k';
 
       charts['tendencias-2'] = new Chart(ctx2, {
@@ -1654,7 +1561,7 @@ function wireChoroControls() {
 // ─── Demografía ───────────────────────────────────────────────────────────────
 // Redefinición de helpers para escalado demográfico según año seleccionado
 // Redefinición de helpers para escalado demográfico según año seleccionado y ciclo de vida
-getDemoTotal = function(code) {
+getDemoTotal = function(code, cycle = DEMO_SELECTED_CYCLE) {
   const base = DEMO_MUN_TOTAL[code] || DEMO_MUN_TOTAL['VALLE'];
   let realPop = 0;
   if (code === 'VALLE') {
@@ -1669,13 +1576,13 @@ getDemoTotal = function(code) {
   let baseMasc = 0;
   let baseFeme = 0;
 
-  if (DEMO_SELECTED_CYCLE === 'ALL') {
+  if (cycle === 'ALL') {
     baseMasc = base.poblacion_masculina;
     baseFeme = base.poblacion_femenina;
   } else {
     const cyclesList = DEMO_CICLOS[code] || DEMO_CICLOS['VALLE'] || [];
     cyclesList.forEach(item => {
-      if (item.ciclo_nombre === DEMO_SELECTED_CYCLE) {
+      if (item.ciclo_nombre === cycle) {
         if (item.sexo === 'M') baseMasc += item.cantidad;
         if (item.sexo === 'F') baseFeme += item.cantidad;
       }
@@ -2210,6 +2117,7 @@ function generateEndemicNarrative(munName, year, munData) {
 }
 
 function getWeeklyZone(value, channel, index) {
+  if (!Number.isFinite(value) || !Number.isFinite(channel.alert[index])) return 'sin_datos';
   if (value > (channel.alert[index] || 0)) return 'epidemica';
   if (value > (channel.safety[index] || 0)) return 'alarma';
   if (value > (channel.success[index] || 0)) return 'seguridad';
@@ -2217,7 +2125,8 @@ function getWeeklyZone(value, channel, index) {
 }
 
 function generateWeeklyEndemicNarrative(munName, year, weekly, channel) {
-  const current = weekly.cases || [];
+  if (!weekly.available || !channel.available) return 'Sin datos suficientes para interpretar el canal semanal. ' + (channel.reason || weekly.reason || '');
+  const current = weekly.cases.filter(Number.isFinite);
   const total = current.reduce((s, v) => s + v, 0);
   const peakValue = Math.max(...current, 0);
   const peakIndex = Math.max(0, current.indexOf(peakValue));
@@ -2290,15 +2199,15 @@ function renderReportMap(code, munName, record) {
       hexes.push(`${hexPath(x, y, hexR)} fill="${palette[idx]}" fill-opacity="${opacity.toFixed(2)}" stroke="#ffffff" stroke-width="1"/>`);
     }
   }
-  target.innerHTML = `<svg viewBox="0 0 ${vbW} ${vbH}" role="img" aria-label="Mapa hexagonal de ${munName}">
+  target.innerHTML = `<svg viewBox="0 0 ${vbW} ${vbH}" role="img" aria-label="Mapa municipal de ${munName}">
     <rect width="${vbW}" height="${vbH}" rx="8" fill="#f8fafc"/>
-    <g opacity="0.95">${hexes.join('')}</g>
+    
     ${paths}
     <circle cx="${vbW - 94}" cy="38" r="8" fill="${color}"/>
     <text x="${vbW - 80}" y="42" font-size="10" fill="#334155">${fmt(record.conteo_dengue || 0)} casos</text>
     <text x="18" y="${vbH - 18}" font-size="12" font-weight="700" fill="#1e3a8a">${munName}</text>
-    <text x="18" y="24" font-size="10" fill="#64748b">Malla hexagonal de referencia territorial</text>
-  </svg><div class="reporte-hex-legend"><span class="reporte-hex-dot" style="background:#bfdbfe"></span>Baja<span class="reporte-hex-dot" style="background:#60a5fa"></span>Media<span class="reporte-hex-dot" style="background:#f87171"></span>Alta</div>`;
+    <text x="18" y="24" font-size="10" fill="#64748b">Casos agregados por municipio; sin distribución intramunicipal</text>
+  </svg>`;
 }
 
 function renderAnnualComparisonTable(munData, year) {
@@ -2315,17 +2224,18 @@ function renderAnnualComparisonTable(munData, year) {
 function renderWeeklyComparisonTable(weekly, channel) {
   const table = document.getElementById('rep-annual-table');
   if (!table) return;
+  if (!weekly.available) { table.innerHTML = '<tbody><tr><td>Sin registros semanales validados; no se estiman picos ni zonas de alerta.</td></tr></tbody>'; return; }
   const rows = (weekly.cases || []).map((cases, i) => ({
     week: i + 1,
     cases,
     incidence: weekly.incidence?.[i] || 0,
     zone: getWeeklyZone(cases, channel, i),
-    alert: channel.alert?.[i] || 0
-  })).sort((a, b) => b.cases - a.cases).slice(0, 12);
-  const zoneLabel = { epidemica: 'Epidemica', alarma: 'Alarma', seguridad: 'Seguridad', exito: 'Exito' };
+    alert: channel.alert?.[i] ?? null
+  })).filter(r => Number.isFinite(r.cases)).sort((a, b) => b.cases - a.cases).slice(0, 12);
+  const zoneLabel = { sin_datos: 'Sin referencia', epidemica: 'Epidemica', alarma: 'Alarma', seguridad: 'Seguridad', exito: 'Exito' };
   table.innerHTML = `<thead><tr><th>Semana</th><th class="num">Casos est.</th><th class="num">Incidencia</th><th class="num">Umbral alto</th><th>Zona</th></tr></thead><tbody>${rows.map(r => {
     const bg = r.zone === 'epidemica' ? ' style="background:#fef2f2"' : r.zone === 'alarma' ? ' style="background:#fffbeb"' : '';
-    return `<tr${bg}><td>Semana ${r.week}</td><td class="num">${fmt(r.cases)}</td><td class="num">${fmtDec(r.incidence)}</td><td class="num">${fmt(Math.round(r.alert))}</td><td>${zoneLabel[r.zone]}</td></tr>`;
+    return `<tr${bg}><td>Semana ${r.week}</td><td class="num">${fmt(r.cases)}</td><td class="num">${fmtDec(r.incidence)}</td><td class="num">${r.alert == null ? '—' : fmt(Math.round(r.alert))}</td><td>${zoneLabel[r.zone]}</td></tr>`;
   }).join('')}</tbody>`;
 }
 
@@ -2385,7 +2295,7 @@ function renderReporte() {
   const munData = getByMun(SELECTED_MUN);
   const stats = getReportStats(munData, SELECTED_YEAR);
   const currentRecord = stats.current;
-  const totalPop = getDemoTotal(SELECTED_MUN)?.poblacion_total || currentRecord.población || 1;
+  const totalPop = currentRecord.población ?? currentRecord.poblacion ?? getDemoTotal(SELECTED_MUN, 'ALL')?.poblacion_total;
   const ciclos = getDemoCiclos(SELECTED_MUN) || [];
   const totalCases = currentRecord.conteo_dengue || 0;
   const burden = estimateChildBurden(ciclos, totalPop, totalCases);
@@ -2431,7 +2341,7 @@ function renderReporte() {
 
   const ctxEndemic = document.getElementById('rep-chart-endemic');
   if (ctxEndemic) {
-    const weekLabels = Array.from({ length: 52 }, (_, i) => `S${i + 1}`);
+    const weekLabels = Array.from({ length: 53 }, (_, i) => `S${i + 1}`);
     charts['repEndemic'] = new Chart(ctxEndemic, {
       data: { labels: weekLabels, datasets: [
         { type: 'line', label: 'Exito', data: weeklyChannel.success, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,.10)', borderWidth: 1.5, pointRadius: 0, fill: true, tension: .25 },
@@ -2451,7 +2361,7 @@ function renderReporte() {
 
   const ctxHist = document.getElementById('rep-chart-historical');
   if (ctxHist) {
-    const weekLabels = Array.from({ length: 52 }, (_, i) => `S${i + 1}`);
+    const weekLabels = Array.from({ length: 53 }, (_, i) => `S${i + 1}`);
     charts['repHist'] = new Chart(ctxHist, {
       data: { labels: weekLabels, datasets: [
         { type: 'bar', label: 'Casos', data: weekly.cases, backgroundColor: 'rgba(59,130,246,.65)', borderColor: '#3b82f6', borderWidth: 1, yAxisID: 'y', borderRadius: 2 },
@@ -2522,6 +2432,412 @@ function renderReporte() {
     document.getElementById('reporte-print-btn').addEventListener('click', () => window.print());
   }
 }
+
+// ─── Datos Climáticos ─────────────────────────────────────────────────────────
+function initClimaMap() {
+  if (climaMap) { climaMap.invalidateSize(); return; }
+  climaMap = L.map('clima-map', { zoomControl: false, preferCanvas: true })
+    .setView([3.8, -76.5], 8);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '©OpenStreetMap ©CARTO', subdomains: 'abcd', maxZoom: 19
+  }).addTo(climaMap);
+  L.control.zoom({ position: 'bottomright' }).addTo(climaMap);
+
+  renderClimaLayer();
+}
+
+function renderClimaLayer() {
+  if (!climaMap || typeof GEO_MUNI === 'undefined' || typeof CLIMADATA === 'undefined') return;
+  climaMapLayers.forEach(l => climaMap.removeLayer(l));
+  climaMapLayers = [];
+  if (climaLegend) { climaMap.removeControl(climaLegend); climaLegend = null; }
+
+  // Build lookup code -> climate record for CLIMA_YEAR and CLIMA_MONTH
+  const lookup = {};
+  getClimaByYearMonth(CLIMA_YEAR, CLIMA_MONTH)
+    .filter(r => CLIMA_CALI || r.MPIO_CCDGO !== '76001')
+    .forEach(r => { lookup[r.MPIO_CCDGO] = r; });
+
+  // Get active values to calculate quantile bins
+  const vals = Object.values(lookup).map(r => r[CLIMA_VAR]).filter(v => v != null).sort((a, b) => a - b);
+  
+  let bins = [];
+  if (vals.length >= 5) {
+    const q = f => vals[Math.max(0, Math.floor((vals.length - 1) * f))];
+    bins = [q(0.2), q(0.4), q(0.6), q(0.8)];
+  } else {
+    // Fallback bins if very few values
+    const maxVal = vals.length ? Math.max(...vals) : 100;
+    bins = [maxVal*0.2, maxVal*0.4, maxVal*0.6, maxVal*0.8];
+  }
+
+  // Palettes tailored per variable type (precipitation is blue-teal-purple, temperature is orange-red, humidity is cyan-blue)
+  let palette;
+  if (CLIMA_VAR === 'total_precipitation') {
+    palette = ['#7fcdbb', '#41b6c4', '#225ea8', '#253494', '#081d58']; // Precipitation: Light Blue-Teal to Dark Blue
+  } else if (CLIMA_VAR.includes('temperature')) {
+    palette = ['#fdd49e', '#fdbb84', '#fc8d59', '#ef6548', '#d7301f']; // Temperature: Yellow to Red
+  } else {
+    palette = ['#e0f3db', '#a8ddb5', '#7bccc4', '#4eb3d3', '#2b8cbe']; // Humidity: Light Green to Cyan-Blue
+  }
+
+  const varUnits = {
+    total_precipitation: 'mm',
+    mean_max_temperature: '°C',
+    mean_min_temperature: '°C',
+    mean_max_humidity: '%',
+    mean_min_humidity: '%'
+  };
+  const unit = varUnits[CLIMA_VAR] || '';
+
+  const colorFn = code => {
+    const v = lookup[code]?.[CLIMA_VAR];
+    if (v == null || v === 0) return '#111827'; // Dark background if unmonitored / no data
+    if (v > bins[3]) return palette[4];
+    if (v > bins[2]) return palette[3];
+    if (v > bins[1]) return palette[2];
+    if (v > bins[0]) return palette[1];
+    return palette[0];
+  };
+
+  const layer = L.geoJSON(GEO_MUNI, {
+    style: feat => {
+      const code = feat.properties?.MPIO_CCDGO;
+      const rec = lookup[code];
+      const hasData = rec != null;
+      return {
+        fillColor: colorFn(code),
+        color: '#060a12',
+        weight: 0.8,
+        fillOpacity: hasData ? 0.85 : 0.15 // Transparent if no data
+      };
+    },
+    onEachFeature: (feat, lyr) => {
+      const code = feat.properties?.MPIO_CCDGO;
+      const name = feat.properties?.MPIO_CNMBR;
+      const rec = lookup[code];
+      
+      let tip;
+      if (rec) {
+        const valForm = parseFloat(rec[CLIMA_VAR]).toFixed(1);
+        const col = colorFn(code);
+        tip = `<div style="font-family:Space Grotesk,sans-serif;min-width:180px">
+          <div style="font-weight:700;color:#e2e8f8;margin-bottom:6px;font-size:14px">${name}</div>
+          <div style="color:#94a3b8;font-size:12px;margin-bottom:2px">Valor: <b style="color:${col}">${valForm} ${unit}</b></div>
+          <div style="color:#94a3b8;font-size:11px">IDEAM · ${CLIMA_YEAR}-${CLIMA_MONTH}</div>
+        </div>`;
+      } else {
+        tip = `<b>${name}</b><br><span style="color:#64748b">Sin estación climatológica activa</span>`;
+      }
+      
+      lyr.bindTooltip(tip, { className: 'geo-tooltip', sticky: true });
+      lyr.on({
+        mouseover: e => {
+          if (lookup[code]) {
+            e.target.setStyle({ weight: 2, fillOpacity: 0.96, color: '#ffffff44' });
+          }
+        },
+        mouseout: e => layer.resetStyle(e.target),
+        click: () => {
+          SELECTED_CLIMA_MUN = code;
+          const munNameEl = document.getElementById('clima-mun-name');
+          if (munNameEl) munNameEl.textContent = `Municipio: ${name}`;
+          renderClimaChart();
+        }
+      });
+    }
+  }).addTo(climaMap);
+  climaMapLayers.push(layer);
+
+  // Zoom to layer bounds
+  try { climaMap.fitBounds(layer.getBounds(), { padding: [12, 12] }); } catch(e) {}
+
+  // Render Legend
+  const varNames = {
+    total_precipitation: 'Precipitación',
+    mean_max_temperature: 'Temp. Máxima',
+    mean_min_temperature: 'Temp. Mínima',
+    mean_max_humidity: 'Humedad Máx.',
+    mean_min_humidity: 'Humedad Mín.'
+  };
+  const vLabel = varNames[CLIMA_VAR] || '';
+  
+  const binLabels = [
+    `< ${bins[0].toFixed(1)}`,
+    `${bins[0].toFixed(1)}–${bins[1].toFixed(1)}`,
+    `${bins[1].toFixed(1)}–${bins[2].toFixed(1)}`,
+    `${bins[2].toFixed(1)}–${bins[3].toFixed(1)}`,
+    `> ${bins[3].toFixed(1)}`
+  ];
+
+  const legendHtml = `<b style="color:#e2e8f8">${vLabel} (${unit})</b>
+    <div style="font-size:10px;color:#64748b;margin:2px 0 6px">IDEAM · ${CLIMA_YEAR}-${CLIMA_MONTH}</div>`
+    + palette.map((c, i) => `<div style="display:flex;align-items:center;gap:7px;margin-bottom:4px">
+        <span style="width:12px;height:12px;border-radius:3px;background:${c};flex-shrink:0"></span>
+        <span>${binLabels[i]}</span></div>`).join('') 
+    + `<div style="display:flex;align-items:center;gap:7px;margin-top:6px;border-top:1px solid #1c2d4a;padding-top:4px">
+        <span style="width:12px;height:12px;border-radius:3px;background:#111827;border:1px dashed #3d5575;flex-shrink:0"></span>
+        <span>Sin datos</span></div>`;
+
+  climaLegend = L.control({ position: 'bottomright' });
+  climaLegend.onAdd = () => {
+    const div = L.DomUtil.create('div');
+    div.style.cssText = 'background:#0c1221ee;border:1px solid #1c2d4a;border-radius:8px;padding:10px 12px;font-family:Space Grotesk,sans-serif;font-size:11px;color:#94a3b8;min-width:150px';
+    div.innerHTML = legendHtml;
+    return div;
+  };
+  climaLegend.addTo(climaMap);
+
+  renderClimaStats(lookup, unit);
+}
+
+function renderClimaStats(lookup, unit) {
+  const el = document.getElementById('clima-stats');
+  if (!el) return;
+
+  const vals = Object.values(lookup).map(r => r[CLIMA_VAR]).filter(v => v != null && v > 0);
+  if (!vals.length) {
+    el.innerHTML = `<div style="color:var(--text-3); font-size:12px; padding:10px 0;">No hay datos climatológicos para los filtros seleccionados.</div>`;
+    return;
+  }
+
+  const sum = vals.reduce((s,v)=>s+v, 0);
+  const avg = sum / vals.length;
+  
+  // Find min and max municipalities
+  let minVal = Infinity, maxVal = -Infinity;
+  let minMun = '', maxMun = '';
+  
+  Object.values(lookup).forEach(r => {
+    const v = r[CLIMA_VAR];
+    if (v != null && v > 0) {
+      if (v < minVal) { minVal = v; minMun = r.MPIO_CNMBR; }
+      if (v > maxVal) { maxVal = v; maxMun = r.MPIO_CNMBR; }
+    }
+  });
+
+  const sortedVals = [...vals].sort((a,b)=>a-b);
+  const median = sortedVals[Math.floor(sortedVals.length/2)];
+
+  el.innerHTML = `
+    <div class="map-stat">
+      <span class="map-stat-val">${avg.toFixed(1)} ${unit}</span>
+      <span class="map-stat-lbl">Promedio del Valle</span>
+    </div>
+    <div class="map-stat">
+      <span class="map-stat-val" style="color:#f87171">${maxVal.toFixed(1)} ${unit}</span>
+      <span class="map-stat-lbl">Máximo (${maxMun})</span>
+    </div>
+    <div class="map-stat">
+      <span class="map-stat-val" style="color:#34d399">${minVal.toFixed(1)} ${unit}</span>
+      <span class="map-stat-lbl">Mínimo (${minMun})</span>
+    </div>
+    <div class="map-stat">
+      <span class="map-stat-val">${median.toFixed(1)} ${unit}</span>
+      <span class="map-stat-lbl">Mediana</span>
+    </div>
+  `;
+}
+
+function wireClimaControls() {
+  // Populate Years and Months dropdowns if empty
+  const yearSel = document.getElementById('clima-year-select');
+  if (yearSel && !yearSel.options.length) {
+    YEARS.forEach(y => {
+      const opt = document.createElement('option');
+      opt.value = y; opt.textContent = y;
+      if (y === CLIMA_YEAR) opt.selected = true;
+      yearSel.appendChild(opt);
+    });
+    yearSel.addEventListener('change', e => {
+      CLIMA_YEAR = parseInt(e.target.value);
+      renderClimaLayer();
+    });
+  }
+
+  const monthSel = document.getElementById('clima-month-select');
+  if (monthSel && !monthSel.options.length) {
+    const meses = [
+      'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+      'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+    ];
+    meses.forEach((m, idx) => {
+      const opt = document.createElement('option');
+      opt.value = idx + 1; opt.textContent = m;
+      if (idx + 1 === CLIMA_MONTH) opt.selected = true;
+      monthSel.appendChild(opt);
+    });
+    monthSel.addEventListener('change', e => {
+      CLIMA_MONTH = parseInt(e.target.value);
+      renderClimaLayer();
+    });
+  }
+
+  const varSel = document.getElementById('clima-var-select');
+  if (varSel) {
+    varSel.addEventListener('change', e => {
+      CLIMA_VAR = e.target.value;
+      renderClimaLayer();
+    });
+  }
+
+  const caliToggle = document.getElementById('clima-cali-toggle');
+  if (caliToggle) {
+    caliToggle.addEventListener('change', e => {
+      CLIMA_CALI = e.target.checked;
+      renderClimaLayer();
+    });
+  }
+
+  const chartVarSel = document.getElementById('clima-mun-chart-var');
+  if (chartVarSel) {
+    chartVarSel.addEventListener('change', () => {
+      renderClimaChart();
+    });
+  }
+}
+
+function renderClimaChart() {
+  const ctx = document.getElementById('clima-chart');
+  if (!ctx) return;
+
+  if (climaChartInstance) {
+    climaChartInstance.destroy();
+    climaChartInstance = null;
+  }
+
+  // Get complete history for selected municipality
+  const rawData = getClimaByMun(SELECTED_CLIMA_MUN);
+  if (!rawData || !rawData.length) {
+    // If municipality has no data, show message or get DB name
+    const mun = MUN_CATALOG.find(m => m.code === SELECTED_CLIMA_MUN);
+    const name = mun?.name || SELECTED_CLIMA_MUN;
+    const munNameEl = document.getElementById('clima-mun-name');
+    if (munNameEl) munNameEl.textContent = `Municipio: ${name} (Sin datos)`;
+    
+    // Draw empty chart with message
+    climaChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: [], datasets: [] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: {
+          title: { display: true, text: 'No hay datos de estaciones del IDEAM en este municipio', color: '#64748b' }
+        },
+        scales: { x: { display: false }, y: { display: false } }
+      }
+    });
+    return;
+  }
+
+  // Update municipality name header in UI
+  const name = rawData[0].MPIO_CNMBR;
+  const munNameEl = document.getElementById('clima-mun-name');
+  if (munNameEl) munNameEl.textContent = `Municipio: ${name}`;
+
+  // Get selected chart variable category
+  const chartVarType = document.getElementById('clima-mun-chart-var')?.value || 'total_precipitation';
+
+  // Construct labels (e.g. "2019-01", "2019-02", etc.)
+  const labels = rawData.map(r => `${r.año}-${String(r.mes).padStart(2, '0')}`);
+
+  let datasets = [];
+
+  if (chartVarType === 'total_precipitation') {
+    datasets = [{
+      label: 'Precipitación Total (mm)',
+      data: rawData.map(r => r.total_precipitation),
+      borderColor: '#3b82f6',
+      backgroundColor: 'rgba(59, 130, 246, 0.08)',
+      borderWidth: 2,
+      pointRadius: 2,
+      tension: 0.3,
+      fill: true
+    }];
+  } else if (chartVarType === 'temperatures') {
+    datasets = [
+      {
+        label: 'Temp. Máxima Media (°C)',
+        data: rawData.map(r => r.mean_max_temperature),
+        borderColor: '#f87171',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.3
+      },
+      {
+        label: 'Temp. Mínima Media (°C)',
+        data: rawData.map(r => r.mean_min_temperature),
+        borderColor: '#fbbf24',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.3
+      }
+    ];
+  } else if (chartVarType === 'humidity') {
+    datasets = [
+      {
+        label: 'Humedad Máxima (%)',
+        data: rawData.map(r => r.mean_max_humidity),
+        borderColor: '#22d3ee',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.3
+      },
+      {
+        label: 'Humedad Mínima (%)',
+        data: rawData.map(r => r.mean_min_humidity),
+        borderColor: '#34d399',
+        backgroundColor: 'transparent',
+        borderWidth: 2,
+        pointRadius: 2,
+        tension: 0.3
+      }
+    ];
+  }
+
+  climaChartInstance = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 600 },
+      plugins: {
+        legend: {
+          display: true,
+          labels: { color: '#94a3b8', font: { family: 'Space Grotesk', size: 10 } }
+        },
+        tooltip: {
+          backgroundColor: '#0c1221',
+          borderColor: '#1e2d45',
+          borderWidth: 1,
+          titleColor: '#e2e8f8',
+          bodyColor: '#94a3b8',
+          bodyFont: { family: 'JetBrains Mono', size: 11 }
+        }
+      },
+      scales: {
+        x: {
+          grid: { color: '#162038' },
+          ticks: {
+            color: '#64748b',
+            font: { family: 'JetBrains Mono', size: 9 },
+            maxTicksLimit: 24 // Don't clutter the x-axis
+          }
+        },
+        y: {
+          grid: { color: '#162038' },
+          ticks: { color: '#64748b', font: { family: 'JetBrains Mono', size: 9 } }
+        }
+      }
+    }
+  });
+}
+
+// ─── Mock GeoJSON Fallback ───────────────────────────────────────────────────
 function buildMockGeoJSON() {
   const SIDES = 8;
   const features = (typeof MUN_CATALOG !== 'undefined' ? MUN_CATALOG : []).map(mun => {
@@ -2551,6 +2867,7 @@ document.addEventListener('DOMContentLoaded', () => {
   wireMapControls();
   wireDiseaseSelector();
   wireChoroControls();
+  wireClimaControls();
   buildTweaksPanel();
   applyTweaks();
 

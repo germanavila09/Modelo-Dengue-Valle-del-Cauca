@@ -3,6 +3,9 @@
 import pytest
 from unittest.mock import Mock, patch
 
+import pandas as pd
+from sqlalchemy.exc import ProgrammingError
+
 
 class TestDBConfig:
     """Test database configuration."""
@@ -106,3 +109,32 @@ class TestCargarPuntosCalor:
         result = cargar_puntos_calor(mock_engine)
         
         mock_read_sql.assert_called_once()
+        query = mock_read_sql.call_args.args[0]
+        assert "dengue_celda_anio" in query
+        assert "num_ide_" not in query
+        assert "direccion" not in query
+
+    @patch("src.db.pd.read_sql")
+    def test_cargar_puntos_calor_reports_missing_optional_table(self, mock_read_sql):
+        """A missing microdata table has a stable, actionable error."""
+        from src.db import FuenteDatosNoDisponibleError, cargar_puntos_calor
+
+        original = Mock(pgcode="42P01")
+        mock_read_sql.side_effect = ProgrammingError("query", {}, original)
+
+        with pytest.raises(FuenteDatosNoDisponibleError, match="public.dengue_celda_anio"):
+            cargar_puntos_calor(Mock())
+
+    @patch("src.db.pd.read_sql")
+    def test_cargar_puntos_calor_handles_pandas_wrapped_error(self, mock_read_sql):
+        """Pandas wraps driver failures, but the missing table remains recognizable."""
+        from src.db import FuenteDatosNoDisponibleError, cargar_puntos_calor
+
+        original = Mock(pgcode="42P01")
+        driver_error = ProgrammingError("query", {}, original)
+        wrapped = pd.errors.DatabaseError("read_sql failed")
+        wrapped.__cause__ = driver_error
+        mock_read_sql.side_effect = wrapped
+
+        with pytest.raises(FuenteDatosNoDisponibleError, match="migrar_dengue_anonimizado"):
+            cargar_puntos_calor(Mock())

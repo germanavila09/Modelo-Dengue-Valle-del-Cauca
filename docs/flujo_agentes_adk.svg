@@ -1,0 +1,348 @@
+<svg viewBox="0 0 1100 878" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI', system-ui, Arial, sans-serif">
+<defs>
+  <!-- Gradient: background -->
+  <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+    <stop offset="0%" stop-color="#0f172a"/>
+    <stop offset="100%" stop-color="#0a1120"/>
+  </linearGradient>
+  <!-- Gradient: title bar -->
+  <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#1e3a5f"/>
+    <stop offset="50%" stop-color="#1e1b4b"/>
+    <stop offset="100%" stop-color="#1a0a2e"/>
+  </linearGradient>
+  <!-- Gradient: frontend -->
+  <linearGradient id="frontGrad" x1="0" y1="0" x2="1" y2="0">
+    <stop offset="0%" stop-color="#172554"/>
+    <stop offset="100%" stop-color="#1e1b4b"/>
+  </linearGradient>
+  <!-- Arrow markers -->
+  <marker id="arrW" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+    <path d="M0,0 L0,7 L7,3.5 z" fill="#94a3b8"/>
+  </marker>
+  <marker id="arrG" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+    <path d="M0,0 L0,7 L7,3.5 z" fill="#34d399"/>
+  </marker>
+  <marker id="arrP" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+    <path d="M0,0 L0,7 L7,3.5 z" fill="#c084fc"/>
+  </marker>
+  <marker id="arrB" markerWidth="7" markerHeight="7" refX="5" refY="3.5" orient="auto">
+    <path d="M0,0 L0,7 L7,3.5 z" fill="#22d3ee"/>
+  </marker>
+</defs>
+
+<!-- ─── BACKGROUND ─── -->
+<rect width="1100" height="878" fill="url(#bgGrad)" rx="14"/>
+
+<!-- ─── TITLE BAR ─── -->
+<rect x="0" y="0" width="1100" height="60" rx="14" fill="url(#titleGrad)"/>
+<rect x="0" y="46" width="1100" height="14" fill="url(#titleGrad)"/>
+<text x="550" y="28" text-anchor="middle" font-size="17" font-weight="700" fill="#f1f5f9" letter-spacing="0.3">Observatorio GeoSalud — Arquitectura Multi-Agente con ADK</text>
+<text x="550" y="50" text-anchor="middle" font-size="10" fill="#94a3b8">Sistema de vigilancia epidemiológica · Dengue · Valle del Cauca · 42 municipios · 2019-2026 · Concurso IA con ADK 2026</text>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     MAIN FLOW  (x: 15–705, y: 68–584)
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<!-- FRONTEND -->
+<rect x="15" y="68" width="690" height="50" rx="8" fill="url(#frontGrad)" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="360" y="89" text-anchor="middle" font-size="11.5" font-weight="700" fill="#93c5fd">FRONTEND — HTML · JavaScript · Leaflet.js</text>
+<text x="140" y="108" text-anchor="middle" font-size="9" fill="#bfdbfe">Dashboard Epidemio</text>
+<text x="278" y="108" text-anchor="middle" font-size="9" fill="#bfdbfe">Mapa Coroplético</text>
+<text x="406" y="108" text-anchor="middle" font-size="9" fill="#bfdbfe">Geovisor PostGIS</text>
+<text x="534" y="108" text-anchor="middle" font-size="9" fill="#bfdbfe">Panel Tendencias</text>
+<text x="645" y="108" text-anchor="middle" font-size="9" fill="#bfdbfe">Chat UI</text>
+
+<!-- Arrow: Frontend → FastAPI -->
+<line x1="360" y1="118" x2="360" y2="133" stroke="#94a3b8" stroke-width="1.5" marker-end="url(#arrW)"/>
+<text x="376" y="129" font-size="8" fill="#64748b">POST /chat</text>
+
+<!-- ── FastAPI + ADK App wrapper ── -->
+<rect x="15" y="135" width="690" height="106" rx="8" fill="#111827" stroke="#6366f1" stroke-width="1.5"/>
+<text x="360" y="153" text-anchor="middle" font-size="10.5" font-weight="700" fill="#a5b4fc">FastAPI — server.py  ·  puerto 8080</text>
+
+<!-- Local resolver (left box) -->
+<rect x="25" y="160" width="305" height="70" rx="6" fill="#1e1b4b" stroke="#818cf8" stroke-width="1" stroke-dasharray="5,2"/>
+<text x="177" y="176" text-anchor="middle" font-size="8.5" font-weight="600" fill="#c7d2fe">Capa Local  (sin llamar a Gemini)</text>
+<text x="177" y="190" text-anchor="middle" font-size="8" fill="#94a3b8">Fuzzy matching · Regex · Action chaining</text>
+<text x="177" y="203" text-anchor="middle" font-size="8" fill="#94a3b8">Respuestas directas al frontend sin latencia LLM</text>
+<text x="177" y="217" text-anchor="middle" font-size="7.5" fill="#818cf8">Fallback si se agota cuota de Gemini API</text>
+
+<!-- ADK App wrapper (right box) -->
+<rect x="338" y="160" width="360" height="70" rx="6" fill="#1e1b4b" stroke="#818cf8" stroke-width="1" stroke-dasharray="5,2"/>
+<text x="518" y="176" text-anchor="middle" font-size="8.5" font-weight="600" fill="#c7d2fe">ADK App — adk_app.run_async()</text>
+<!-- feature pills row 1 -->
+<rect x="346" y="183" width="116" height="14" rx="4" fill="#0f172a" stroke="#6366f1" stroke-width="0.8"/>
+<text x="404" y="193" text-anchor="middle" font-size="7" fill="#a5b4fc">EventsCompactionConfig</text>
+<rect x="468" y="183" width="100" height="14" rx="4" fill="#0f172a" stroke="#6366f1" stroke-width="0.8"/>
+<text x="518" y="193" text-anchor="middle" font-size="7" fill="#a5b4fc">ContextCacheConfig</text>
+<rect x="574" y="183" width="118" height="14" rx="4" fill="#0f172a" stroke="#06b6d4" stroke-width="0.8"/>
+<text x="633" y="193" text-anchor="middle" font-size="7" fill="#67e8f9">InMemoryMemoryService</text>
+<text x="518" y="213" text-anchor="middle" font-size="7.5" fill="#94a3b8">before/after_tool_callback → adk_tool_calls.log</text>
+<text x="518" y="225" text-anchor="middle" font-size="7.5" fill="#818cf8">InMemorySessionService · InMemoryArtifactService</text>
+
+<!-- Arrow: FastAPI → Orchestrator -->
+<line x1="360" y1="241" x2="360" y2="258" stroke="#34d399" stroke-width="2" marker-end="url(#arrG)"/>
+
+<!-- ── ORCHESTRATOR ── -->
+<rect x="140" y="260" width="440" height="58" rx="8" fill="#022c22" stroke="#10b981" stroke-width="2"/>
+<text x="360" y="281" text-anchor="middle" font-size="12" font-weight="700" fill="#6ee7b7">observatorio_orchestrator</text>
+<text x="360" y="296" text-anchor="middle" font-size="9" fill="#a7f3d0">root_agent · Gemini 2.5 Flash · Tabla de enrutamiento LLM</text>
+<text x="360" y="311" text-anchor="middle" font-size="8.5" fill="#6ee7b7">Decide qué subagente atiende cada consulta · Responde saludos directamente</text>
+
+<!-- Arrows: Orchestrator → 4 agents -->
+<line x1="200" y1="318" x2="101" y2="340" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrG)"/>
+<line x1="295" y1="318" x2="272" y2="340" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrG)"/>
+<line x1="422" y1="318" x2="445" y2="340" stroke="#34d399" stroke-width="1.5" marker-end="url(#arrG)"/>
+<line x1="510" y1="318" x2="617" y2="340" stroke="#c084fc" stroke-width="2" stroke-dasharray="5,2" marker-end="url(#arrP)"/>
+<text x="576" y="333" font-size="7.5" fill="#c084fc" font-weight="600">datos + gráfica</text>
+
+<!-- ══════ 4 AGENTS ══════ -->
+
+<!-- Agent widths: 172px each with 8px gaps. A1:15-187, A2:195-367, A3:375-547, A4:555-705 -->
+
+<!-- epidemio_agent -->
+<rect x="15" y="342" width="172" height="168" rx="8" fill="#1c1007" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="101" y="361" text-anchor="middle" font-size="10.5" font-weight="700" fill="#fbbf24">epidemio_agent</text>
+<text x="101" y="374" text-anchor="middle" font-size="7.5" fill="#fde68a">Consultas numéricas SQL</text>
+<line x1="25" y1="380" x2="178" y2="380" stroke="#78350f" stroke-width="0.7"/>
+<text x="25" y="393" font-size="7.5" fill="#fed7aa">• listar_municipios</text>
+<text x="25" y="406" font-size="7.5" fill="#fed7aa">• casos_por_municipio_anio</text>
+<text x="25" y="419" font-size="7.5" fill="#fed7aa">• top_municipios</text>
+<text x="25" y="432" font-size="7.5" fill="#fed7aa">• serie_temporal_municipio</text>
+<text x="25" y="445" font-size="7.5" fill="#fed7aa">• resumen_anio</text>
+<text x="25" y="458" font-size="7.5" fill="#fed7aa">• consultar_poblacion_* ×3</text>
+<text x="25" y="471" font-size="7.5" fill="#fed7aa">• establecer_preferencia</text>
+<!-- preload_memory badge -->
+<rect x="20" y="479" width="162" height="24" rx="4" fill="#0f2236" stroke="#06b6d4" stroke-width="1"/>
+<text x="101" y="489" text-anchor="middle" font-size="7" fill="#67e8f9" font-weight="600">🧠 preload_memory</text>
+<text x="101" y="499" text-anchor="middle" font-size="6.5" fill="#94a3b8">recuerda preferencias pasadas</text>
+
+<!-- viz_agent -->
+<rect x="195" y="342" width="172" height="168" rx="8" fill="#1a0510" stroke="#ec4899" stroke-width="1.5"/>
+<text x="281" y="361" text-anchor="middle" font-size="10.5" font-weight="700" fill="#f472b6">viz_agent</text>
+<text x="281" y="374" text-anchor="middle" font-size="7.5" fill="#fbcfe8">Gráficas PNG · ADK Artifacts</text>
+<line x1="205" y1="380" x2="358" y2="380" stroke="#831843" stroke-width="0.7"/>
+<text x="205" y="393" font-size="7.5" fill="#fce7f3">• grafica_casos_por_anio</text>
+<text x="205" y="406" font-size="7.5" fill="#fce7f3">• grafica_top_municipios</text>
+<text x="205" y="419" font-size="7.5" fill="#fce7f3">• grafica_serie_municipio</text>
+<text x="205" y="432" font-size="7.5" fill="#fce7f3">• grafica_series_municipios</text>
+<text x="205" y="445" font-size="7.5" fill="#fce7f3">• grafica_facet_municipios</text>
+<text x="205" y="461" font-size="7.5" fill="#f472b6">Caché determinista de artifacts</text>
+<text x="205" y="474" font-size="7.5" fill="#94a3b8">nombre = hash(parámetros)</text>
+<text x="205" y="487" font-size="7.5" fill="#94a3b8">evita regenerar PNG idénticos</text>
+
+<!-- ui_agent -->
+<rect x="375" y="342" width="172" height="168" rx="8" fill="#021e26" stroke="#06b6d4" stroke-width="1.5"/>
+<text x="461" y="361" text-anchor="middle" font-size="10.5" font-weight="700" fill="#22d3ee">ui_agent</text>
+<text x="461" y="374" text-anchor="middle" font-size="7.5" fill="#a5f3fc">Acciones de UI (JSON)</text>
+<line x1="385" y1="380" x2="538" y2="380" stroke="#164e63" stroke-width="0.7"/>
+<text x="385" y="393" font-size="7.5" fill="#cffafe">• mostrar_mapa_coropletico</text>
+<text x="385" y="406" font-size="7.5" fill="#cffafe">• mostrar_geovisor</text>
+<text x="385" y="419" font-size="7.5" fill="#cffafe">• abrir_modulo_observatorio</text>
+<text x="385" y="435" font-size="7.5" fill="#22d3ee">Panel · Indicadores · Tendencias</text>
+<text x="385" y="448" font-size="7.5" fill="#22d3ee">Geovisor · Coroplético · Demog.</text>
+<text x="385" y="461" font-size="7.5" fill="#22d3ee">Variables: casos / incidencia</text>
+<text x="385" y="474" font-size="7.5" fill="#22d3ee">riesgo / cambio / género</text>
+<text x="385" y="487" font-size="7.5" fill="#94a3b8">Retorna JSON action al frontend</text>
+
+<!-- epidemio_viz_parallel — ParallelAgent NEW -->
+<rect x="555" y="342" width="150" height="168" rx="8" fill="#12002e" stroke="#a855f7" stroke-width="2"/>
+<rect x="609" y="344" width="90" height="16" rx="4" fill="#7c3aed"/>
+<text x="654" y="356" text-anchor="middle" font-size="7.5" font-weight="700" fill="#fff">✦ NUEVO ADK</text>
+<text x="630" y="373" text-anchor="middle" font-size="10" font-weight="700" fill="#c084fc">Parallel</text>
+<text x="630" y="386" text-anchor="middle" font-size="10" font-weight="700" fill="#c084fc">Agent</text>
+<line x1="563" y1="393" x2="697" y2="393" stroke="#4c1d95" stroke-width="0.7"/>
+<text x="630" y="406" text-anchor="middle" font-size="7.5" fill="#e9d5ff">Ejecuta en paralelo:</text>
+<rect x="565" y="414" width="130" height="14" rx="4" fill="#451a03" stroke="#f59e0b" stroke-width="0.7"/>
+<text x="630" y="424" text-anchor="middle" font-size="7.5" fill="#fbbf24">▶ epidemio_agent</text>
+<rect x="565" y="432" width="130" height="14" rx="4" fill="#500724" stroke="#ec4899" stroke-width="0.7"/>
+<text x="630" y="442" text-anchor="middle" font-size="7.5" fill="#f472b6">▶ viz_agent</text>
+<text x="630" y="458" text-anchor="middle" font-size="7" fill="#a78bfa">Sin esperar resultado de</text>
+<text x="630" y="470" text-anchor="middle" font-size="7" fill="#a78bfa">cada uno para iniciar el otro</text>
+<text x="630" y="487" text-anchor="middle" font-size="9" fill="#c084fc" font-weight="700">⚡ ~50% latencia</text>
+<text x="630" y="499" text-anchor="middle" font-size="7" fill="#94a3b8">vs ejecución secuencial</text>
+
+<!-- ══════ DATA LAYER ══════ -->
+
+<!-- Arrows down to data -->
+<line x1="101" y1="510" x2="101" y2="526" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrW)"/>
+<line x1="281" y1="510" x2="281" y2="526" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrW)"/>
+<line x1="461" y1="510" x2="461" y2="526" stroke="#94a3b8" stroke-width="1.2" marker-end="url(#arrW)"/>
+
+<!-- PostgreSQL / PostGIS -->
+<rect x="15" y="528" width="382" height="52" rx="8" fill="#1a0533" stroke="#a855f7" stroke-width="1.5"/>
+<text x="206" y="547" text-anchor="middle" font-size="10" font-weight="700" fill="#c084fc">PostgreSQL · PostGIS — terrarIA.valle_mun</text>
+<text x="96" y="566" text-anchor="middle" font-size="8" fill="#e9d5ff">42 municipios</text>
+<text x="205" y="566" text-anchor="middle" font-size="8" fill="#e9d5ff">2019–2026</text>
+<text x="330" y="566" text-anchor="middle" font-size="8" fill="#e9d5ff">+166k filas · geom (4326)</text>
+
+<!-- InMemoryMemoryService -->
+<rect x="405" y="528" width="300" height="52" rx="8" fill="#061628" stroke="#06b6d4" stroke-width="1.5"/>
+<text x="555" y="547" text-anchor="middle" font-size="10" font-weight="700" fill="#22d3ee">InMemoryMemoryService</text>
+<text x="555" y="562" text-anchor="middle" font-size="8" fill="#a5f3fc">Preferencias · municipio favorito · métrica elegida</text>
+<text x="555" y="575" text-anchor="middle" font-size="8" fill="#67e8f9">Se carga vía preload_memory al inicio de cada turno</text>
+
+<!-- Memory save arrow -->
+<path d="M 555 510 L 555 526" stroke="#06b6d4" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#arrB)" fill="none"/>
+<text x="560" y="521" font-size="7" fill="#06b6d4">guardar sesión</text>
+
+<!-- NeuralProphet tag -->
+<rect x="718" y="528" width="180" height="52" rx="8" fill="#0f1f0a" stroke="#4ade80" stroke-width="1.2"/>
+<text x="808" y="547" text-anchor="middle" font-size="9" font-weight="700" fill="#86efac">NeuralProphet · PyTorch</text>
+<text x="808" y="561" text-anchor="middle" font-size="7.5" fill="#bbf7d0">Pronóstico de casos</text>
+<text x="808" y="574" text-anchor="middle" font-size="7.5" fill="#94a3b8">Modelo ML de series temporales</text>
+
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     ADK FEATURES PANEL  (x: 910–1085, y: 68–582)
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<rect x="910" y="68" width="175" height="514" rx="10" fill="#0c1528" stroke="#334155" stroke-width="1.2"/>
+<text x="997" y="88" text-anchor="middle" font-size="9.5" font-weight="700" fill="#f1f5f9">ADK Implementado</text>
+<line x1="920" y1="95" x2="1077" y2="95" stroke="#334155" stroke-width="0.8"/>
+
+<!-- ①  App wrapper -->
+<rect x="918" y="100" width="161" height="84" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+<text x="928" y="114" font-size="8" font-weight="700" fill="#a5b4fc">① App (reemplaza Runner)</text>
+<text x="928" y="126" font-size="7" fill="#818cf8">google.adk.apps.app.App</text>
+<text x="928" y="139" font-size="7" fill="#94a3b8">Patrón oficial que habilita</text>
+<text x="928" y="151" font-size="7" fill="#94a3b8">compactación, caché y</text>
+<text x="928" y="163" font-size="7" fill="#94a3b8">memoria en una instancia.</text>
+<text x="928" y="176" font-size="7" fill="#818cf8">run_async() por turno</text>
+
+<!-- ② EventsCompactionConfig -->
+<rect x="918" y="190" width="161" height="90" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+<text x="928" y="204" font-size="8" font-weight="700" fill="#a5b4fc">② EventsCompaction</text>
+<text x="928" y="216" font-size="7" fill="#818cf8">token_threshold = 16 000</text>
+<text x="928" y="228" font-size="7" fill="#818cf8">interval=15  overlap=2</text>
+<text x="928" y="241" font-size="7" fill="#94a3b8">Comprime historial cuando</text>
+<text x="928" y="253" font-size="7" fill="#94a3b8">supera 16k tokens. Evita</text>
+<text x="928" y="265" font-size="7" fill="#94a3b8">lentitud en sesiones largas.</text>
+<text x="928" y="276" font-size="7" fill="#818cf8">Retiene últimos 4 eventos</text>
+
+<!-- ③ ContextCacheConfig -->
+<rect x="918" y="286" width="161" height="90" rx="6" fill="#1e1b4b" stroke="#6366f1" stroke-width="1"/>
+<text x="928" y="300" font-size="8" font-weight="700" fill="#a5b4fc">③ ContextCacheConfig</text>
+<text x="928" y="312" font-size="7" fill="#818cf8">min_tokens = 2 048</text>
+<text x="928" y="324" font-size="7" fill="#818cf8">ttl=600s  intervals=10</text>
+<text x="928" y="337" font-size="7" fill="#94a3b8">Cachea system prompts</text>
+<text x="928" y="349" font-size="7" fill="#94a3b8">estáticos con Gemini 2.0+.</text>
+<text x="928" y="361" font-size="7" fill="#94a3b8">Prompts &gt;3k tokens son</text>
+<text x="928" y="373" font-size="7" fill="#818cf8">cacheados = ↓ costo/turno</text>
+
+<!-- ④ MemoryService -->
+<rect x="918" y="382" width="161" height="96" rx="6" fill="#061628" stroke="#06b6d4" stroke-width="1.2"/>
+<text x="928" y="396" font-size="8" font-weight="700" fill="#22d3ee">④ MemoryService</text>
+<text x="928" y="408" font-size="7" fill="#67e8f9">InMemoryMemoryService</text>
+<text x="928" y="421" font-size="7" fill="#94a3b8">Persiste preferencias entre</text>
+<text x="928" y="433" font-size="7" fill="#94a3b8">sesiones distintas. Al final</text>
+<text x="928" y="445" font-size="7" fill="#94a3b8">de cada turno: guarda.</text>
+<text x="928" y="457" font-size="7" fill="#94a3b8">Al inicio del siguiente:</text>
+<text x="928" y="469" font-size="7" fill="#22d3ee">preload_memory los carga.</text>
+
+<!-- ⑤ ParallelAgent -->
+<rect x="918" y="484" width="161" height="96" rx="6" fill="#12002e" stroke="#a855f7" stroke-width="1.5"/>
+<rect x="1034" y="486" width="37" height="13" rx="3" fill="#7c3aed"/>
+<text x="1052" y="496" text-anchor="middle" font-size="6.5" font-weight="700" fill="#fff">✦ NUEVO</text>
+<text x="928" y="500" font-size="8" font-weight="700" fill="#c084fc">⑤ ParallelAgent</text>
+<text x="928" y="512" font-size="7" fill="#a78bfa">ParallelAgent(</text>
+<text x="928" y="524" font-size="7" fill="#a78bfa">  sub_agents=[epid, viz]</text>
+<text x="928" y="536" font-size="7" fill="#a78bfa">)</text>
+<text x="928" y="549" font-size="7" fill="#94a3b8">Ambos agentes corren</text>
+<text x="928" y="561" font-size="7" fill="#94a3b8">simultáneamente sin</text>
+<text x="928" y="573" font-size="7" fill="#c084fc">esperar al otro ⚡</text>
+
+<!-- ══════════════════════════════════════════════════════════════════════
+     ROUTING EXAMPLES  (full width, y: 596–862)
+     ══════════════════════════════════════════════════════════════════════ -->
+
+<rect x="15" y="596" width="1070" height="270" rx="10" fill="#0c1528" stroke="#334155" stroke-width="1.2"/>
+<text x="550" y="616" text-anchor="middle" font-size="11" font-weight="700" fill="#f1f5f9">Cómo el orquestador enruta cada consulta</text>
+<line x1="25" y1="624" x2="1075" y2="624" stroke="#334155" stroke-width="0.8"/>
+
+<!-- ─ Example 1: epidemio ─ -->
+<rect x="25" y="630" width="252" height="228" rx="7" fill="#1c1007" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="151" y="648" text-anchor="middle" font-size="9" font-weight="700" fill="#fbbf24">Consulta numérica → epidemio_agent</text>
+<rect x="33" y="654" width="236" height="34" rx="5" fill="#0f172a"/>
+<text x="151" y="668" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">"¿Cuántos casos tuvo Cali</text>
+<text x="151" y="682" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">en 2024?"</text>
+<text x="151" y="700" text-anchor="middle" font-size="7.5" fill="#94a3b8">Orchestrator: consulta numérica</text>
+<text x="151" y="712" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ transfiere a epidemio_agent</text>
+<rect x="35" y="720" width="232" height="14" rx="3" fill="#451a03"/>
+<text x="151" y="731" text-anchor="middle" font-size="7.5" fill="#fbbf24" font-weight="600">casos_por_municipio_anio("CALI", 2024)</text>
+<text x="151" y="747" text-anchor="middle" font-size="7.5" fill="#94a3b8">Query SQL → PostgreSQL/PostGIS</text>
+<text x="151" y="759" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ 4.823 casos · inc 183.4/100k</text>
+<rect x="33" y="770" width="236" height="42" rx="4" fill="#0f172a" stroke="#f59e0b" stroke-width="0.8"/>
+<text x="151" y="784" text-anchor="middle" font-size="7.5" fill="#fde68a" font-weight="600">🧠 preload_memory activado</text>
+<text x="151" y="797" text-anchor="middle" font-size="7" fill="#fde68a">Recordó "prefiero incidencia"</text>
+<text x="151" y="809" text-anchor="middle" font-size="7" fill="#94a3b8">de sesión anterior → responde en</text>
+<text x="151" y="821" text-anchor="middle" font-size="7" fill="#94a3b8">incidencia sin que el usuario lo pida</text>
+<text x="151" y="849" text-anchor="middle" font-size="8.5" font-weight="700" fill="#f59e0b">epidemio_agent</text>
+
+<!-- ─ Example 2: viz ─ -->
+<rect x="285" y="630" width="252" height="228" rx="7" fill="#1a0510" stroke="#ec4899" stroke-width="1.2"/>
+<text x="411" y="648" text-anchor="middle" font-size="9" font-weight="700" fill="#f472b6">Solicitud visual → viz_agent</text>
+<rect x="293" y="654" width="236" height="34" rx="5" fill="#0f172a"/>
+<text x="411" y="668" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">"Dame la gráfica del</text>
+<text x="411" y="682" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">top 5 municipios en 2024"</text>
+<text x="411" y="700" text-anchor="middle" font-size="7.5" fill="#94a3b8">Orchestrator: solicitud visual PNG</text>
+<text x="411" y="712" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ transfiere a viz_agent</text>
+<rect x="295" y="720" width="232" height="14" rx="3" fill="#500724"/>
+<text x="411" y="731" text-anchor="middle" font-size="7.5" fill="#f472b6" font-weight="600">grafica_top_municipios(anio=2024, n=5)</text>
+<text x="411" y="747" text-anchor="middle" font-size="7.5" fill="#94a3b8">Genera matplotlib PNG</text>
+<text x="411" y="759" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ ADK Artifact (InMemory)</text>
+<rect x="293" y="770" width="236" height="42" rx="4" fill="#0f172a" stroke="#ec4899" stroke-width="0.8"/>
+<text x="411" y="784" text-anchor="middle" font-size="7.5" fill="#fbcfe8" font-weight="600">🗂️  Caché determinista activa</text>
+<text x="411" y="797" text-anchor="middle" font-size="7" fill="#fbcfe8">top5_casos_2024.png ya existe</text>
+<text x="411" y="809" text-anchor="middle" font-size="7" fill="#94a3b8">→ reutiliza Artifact sin re-generar</text>
+<text x="411" y="821" text-anchor="middle" font-size="7" fill="#94a3b8">0 ms de procesamiento matplotlib</text>
+<text x="411" y="849" text-anchor="middle" font-size="8.5" font-weight="700" fill="#ec4899">viz_agent</text>
+
+<!-- ─ Example 3: ui ─ -->
+<rect x="545" y="630" width="252" height="228" rx="7" fill="#021e26" stroke="#06b6d4" stroke-width="1.2"/>
+<text x="671" y="648" text-anchor="middle" font-size="9" font-weight="700" fill="#22d3ee">Control de UI → ui_agent</text>
+<rect x="553" y="654" width="236" height="34" rx="5" fill="#0f172a"/>
+<text x="671" y="668" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">"Abre el mapa de incidencia</text>
+<text x="671" y="682" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">de 2024 sin incluir Cali"</text>
+<text x="671" y="700" text-anchor="middle" font-size="7.5" fill="#94a3b8">Orchestrator: acción de interfaz</text>
+<text x="671" y="712" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ transfiere a ui_agent</text>
+<rect x="555" y="720" width="232" height="14" rx="3" fill="#0c2730"/>
+<text x="671" y="731" text-anchor="middle" font-size="7.5" fill="#22d3ee" font-weight="600">mostrar_mapa_coropletico(...)</text>
+<text x="671" y="747" text-anchor="middle" font-size="7.5" fill="#94a3b8">Retorna JSON action al frontend</text>
+<text x="671" y="759" text-anchor="middle" font-size="7.5" fill="#67e8f9">{type:"map", var:"incidencia",</text>
+<text x="671" y="771" text-anchor="middle" font-size="7.5" fill="#67e8f9">anio:2024, incluir_cali:false}</text>
+<rect x="553" y="782" width="236" height="30" rx="4" fill="#0f172a" stroke="#06b6d4" stroke-width="0.8"/>
+<text x="671" y="797" text-anchor="middle" font-size="7.5" fill="#a5f3fc" font-weight="600">✅ Frontend actualiza Leaflet.js</text>
+<text x="671" y="810" text-anchor="middle" font-size="7" fill="#94a3b8">sin recargar página · capa local sin LLM</text>
+<text x="671" y="849" text-anchor="middle" font-size="8.5" font-weight="700" fill="#06b6d4">ui_agent</text>
+
+<!-- ─ Example 4: ParallelAgent ─ -->
+<rect x="805" y="630" width="275" height="228" rx="7" fill="#12002e" stroke="#a855f7" stroke-width="2"/>
+<rect x="1032" y="632" width="40" height="14" rx="3" fill="#7c3aed"/>
+<text x="1052" y="642" text-anchor="middle" font-size="6.5" font-weight="700" fill="#fff">✦ NUEVO</text>
+<text x="942" y="648" text-anchor="middle" font-size="9" font-weight="700" fill="#c084fc">Datos + gráfica → ParallelAgent</text>
+<rect x="813" y="654" width="259" height="34" rx="5" fill="#0f172a"/>
+<text x="942" y="668" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">"Dame los datos y la gráfica</text>
+<text x="942" y="682" text-anchor="middle" font-size="8.5" fill="#e2e8f0" font-style="italic">del top 5 de 2024"</text>
+<text x="942" y="700" text-anchor="middle" font-size="7.5" fill="#94a3b8">Orchestrator: pide datos + visual</text>
+<text x="942" y="712" text-anchor="middle" font-size="7.5" fill="#94a3b8">→ transfiere a epidemio_viz_parallel</text>
+<!-- parallel timing bar -->
+<text x="815" y="728" font-size="7" fill="#6b7280">Secuencial:</text>
+<rect x="870" y="720" width="100" height="9" rx="2" fill="#f59e0b" opacity="0.7"/>
+<rect x="970" y="720" width="100" height="9" rx="2" fill="#ec4899" opacity="0.7"/>
+<text x="815" y="744" font-size="7" fill="#a855f7">Paralelo:</text>
+<rect x="870" y="736" width="100" height="9" rx="2" fill="#f59e0b" opacity="0.8"/>
+<rect x="870" y="736" width="100" height="9" rx="2" fill="#ec4899" opacity="0.4"/>
+<text x="974" y="745" font-size="7.5" fill="#c084fc" font-weight="700">⚡ ÷2</text>
+<text x="815" y="760" font-size="7" fill="#6b7280">epid ████████  viz ████████  (secuencial)</text>
+<text x="815" y="773" font-size="7" fill="#c084fc">epid ████████</text>
+<text x="878" y="773" font-size="7" fill="#c084fc">viz ████████  (simultáneo)</text>
+
+<rect x="813" y="782" width="259" height="30" rx="4" fill="#1a0033" stroke="#a855f7" stroke-width="0.8"/>
+<text x="942" y="797" text-anchor="middle" font-size="7.5" fill="#ddd6fe" font-weight="600">✅ Un solo turno: tabla de datos + PNG</text>
+<text x="942" y="810" text-anchor="middle" font-size="7" fill="#94a3b8">ambas respuestas al mismo tiempo en el chat</text>
+
+<text x="942" y="849" text-anchor="middle" font-size="8.5" font-weight="700" fill="#a855f7">epidemio_viz_parallel (ParallelAgent)</text>
+
+</svg>

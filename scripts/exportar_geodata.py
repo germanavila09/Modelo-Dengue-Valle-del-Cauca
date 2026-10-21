@@ -9,6 +9,7 @@ Uso:
 """
 
 import json
+import math
 import sys
 import warnings
 from datetime import date
@@ -34,35 +35,60 @@ DEST = ROOT / "frontend" / "geodata-data.js"
 print("Conectando a PostgreSQL…")
 engine = crear_engine()
 
-# ─── 2. UPDATE: redondear decimales en valle_mun ─────────────────────────────
-print("Redondeando decimales en valle_mun…")
-with engine.begin() as conn:
-    conn.execute(text("""
-        UPDATE public.valle_mun
-        SET
-            conteo_dengue     = ROUND(conteo_dengue),
-            incidencia_dengue = ROUND(incidencia_dengue::numeric, 1)
-        WHERE conteo_dengue IS NOT NULL
-           OR incidencia_dengue IS NOT NULL
-    """))
-print("  UPDATE completado.")
+# The export never mutates source observations; round only serialized values.
+from sqlalchemy import event
+@event.listens_for(engine, "begin")
+def _read_only_export(connection):
+    connection.exec_driver_sql("SET TRANSACTION READ ONLY")
 
-# ─── 3. GeoJSON desde municipios_valle ───────────────────────────────────────
-print("Leyendo geometrías de municipios_valle…")
+# ─── 3. GeoJSON desde valle_mun ───────────────────────────────────────
+print("Leyendo geometrías de valle_mun…")
 gdf_geo = gpd.read_postgis(
     """
-    SELECT
-        mpio_ccdgo_full                           AS "MPIO_CCDGO",
-        INITCAP(LOWER(mpio_cnmbr))                AS "MPIO_CNMBR",
-        geometry
-    FROM public.municipios_valle
-    WHERE mpio_ccdgo_full IS NOT NULL
-      AND geometry IS NOT NULL
-    ORDER BY mpio_ccdgo_full
+    SELECT DISTINCT
+        "MPIO_CCDGO",
+        INITCAP(LOWER("MPIO_CNMBR"))                AS "MPIO_CNMBR",
+        geom                                        AS geometry
+    FROM public.valle_mun
+    WHERE "MPIO_CCDGO" IS NOT NULL
+      AND geom IS NOT NULL
+    ORDER BY "MPIO_CCDGO"
     """,
     engine,
     geom_col="geometry",
 )
+
+def clean_muni_name(name):
+    if not name:
+        return ""
+    name = str(name)
+    name = name.replace('Alcal?', 'Alcalá')
+    name = name.replace('Andaluc?a', 'Andalucía')
+    name = name.replace('Andaluc?A', 'Andalucía')
+    name = name.replace('Bol?var', 'Bolívar')
+    name = name.replace('Bol?Var', 'Bolívar')
+    name = name.replace('El ?guila', 'El Águila')
+    name = name.replace('El ?Guila', 'El Águila')
+    name = name.replace('Guacar?', 'Guacarí')
+    name = name.replace('Jamund?', 'Jamundí')
+    name = name.replace('La Uni?n', 'La Unión')
+    name = name.replace('La Uni?N', 'La Unión')
+    name = name.replace('Riofr?o', 'Riofrío')
+    name = name.replace('Riofr?O', 'Riofrío')
+    name = name.replace('Tulu?', 'Tuluá')
+    return name
+
+def clean_float(val):
+    try:
+        f = float(val)
+        if math.isnan(f) or math.isinf(f):
+            return None
+        return round(f, 2)
+    except (ValueError, TypeError):
+        return None
+
+gdf_geo["MPIO_CNMBR"] = gdf_geo["MPIO_CNMBR"].apply(clean_muni_name)
+
 
 # Reproyectar a WGS84 (ya está en 4326, pero por si acaso)
 if gdf_geo.crs is None or gdf_geo.crs.to_epsg() != 4326:
@@ -96,15 +122,17 @@ df = pd.read_sql(
     SELECT
         "MPIO_CCDGO",
         INITCAP(LOWER("MPIO_CNMBR"))            AS "MPIO_CNMBR",
-        año                                      AS ano,
+        anio                                    AS ano,
         COALESCE(conteo_dengue, 0)              AS conteo_dengue,
         COALESCE(incidencia_dengue::float, 0.0) AS incidencia_dengue,
-        COALESCE(población, 0)                  AS poblacion
+        COALESCE(poblacion, 0)                  AS poblacion
     FROM public.valle_mun
-    ORDER BY año, "MPIO_CCDGO"
+    ORDER BY anio, "MPIO_CCDGO"
     """),
     engine,
 )
+df["MPIO_CNMBR"] = df["MPIO_CNMBR"].apply(clean_muni_name)
+
 print(f"  {len(df)} registros cargados.")
 
 # ─── 7. RISK_MAP: promedio incidencia 2022-2024 ───────────────────────────────
@@ -213,6 +241,41 @@ for _, row in df.iterrows():
 # ─── 11. YEARS ───────────────────────────────────────────────────────────────
 YEARS = sorted(df["ano"].unique().tolist())
 
+# ─── 11b. Leer clima_mensual_municipio ────────────────────────────────────────
+print("Leyendo datos de clima_mensual_municipio…")
+df_clima = pd.read_sql(
+    text("""
+    SELECT
+        "MPIO_CCDGO",
+        INITCAP(LOWER("MPIO_CNMBR"))            AS "MPIO_CNMBR",
+        año                                     AS ano,
+        mes,
+        COALESCE(total_precipitation::float, 0.0) AS total_precipitation,
+        COALESCE(mean_max_temperature::float, 0.0) AS mean_max_temperature,
+        COALESCE(mean_min_temperature::float, 0.0) AS mean_min_temperature,
+        COALESCE(mean_max_humidity::float, 0.0) AS mean_max_humidity,
+        COALESCE(mean_min_humidity::float, 0.0) AS mean_min_humidity
+    FROM public.clima_mensual_municipio
+    ORDER BY año, mes, "MPIO_CCDGO"
+    """),
+    engine,
+)
+print(f"  {len(df_clima)} registros de clima cargados.")
+
+CLIMADATA = []
+for _, row in df_clima.iterrows():
+    CLIMADATA.append({
+        "MPIO_CCDGO":           str(row["MPIO_CCDGO"]),
+        "MPIO_CNMBR":           clean_muni_name(row["MPIO_CNMBR"]),
+        "año":                  int(row["ano"]),
+        "mes":                  int(row["mes"]),
+        "total_precipitation":  clean_float(row["total_precipitation"]),
+        "mean_max_temperature": clean_float(row["mean_max_temperature"]),
+        "mean_min_temperature": clean_float(row["mean_min_temperature"]),
+        "mean_max_humidity":    clean_float(row["mean_max_humidity"]),
+        "mean_min_humidity":    clean_float(row["mean_min_humidity"]),
+    })
+
 # ─── 12. Escribir geodata-data.js ────────────────────────────────────────────
 today = date.today().strftime("%Y-%m-%d")
 print(f"Escribiendo {DEST}…")
@@ -244,6 +307,9 @@ js_parts.append(f"\nvar RISK_MAP = {json.dumps(RISK_MAP, ensure_ascii=False, ind
 
 # DELTA_MAP
 js_parts.append(f"\nvar DELTA_MAP = {json.dumps(DELTA_MAP, ensure_ascii=False, indent=2)};\n")
+
+# CLIMADATA
+js_parts.append(f"\nvar CLIMADATA = {json.dumps(CLIMADATA, ensure_ascii=False, indent=2)};\n")
 
 # Query helpers + getPivotTable + getKPIs
 js_parts.append("""
@@ -298,6 +364,19 @@ function getKPIs(year = 2024) {
   const critical = rows.filter(r=>r.incidencia_dengue>400).length;
   const peakYear = YEARS.reduce((best,y)=>getTotalByYear(y)>getTotalByYear(best)?y:best,YEARS[0]);
   return {total, incProm:parseFloat(incProm.toFixed(1)), critical, peakYear};
+}
+
+// ─── Query helpers for Climate ────────────────────────────────────────────────
+
+function getClimaByYearMonth(year, month) {
+  return CLIMADATA.filter(r => r.año === year && r.mes === month);
+}
+
+function getClimaByMun(code) {
+  return CLIMADATA.filter(r => r.MPIO_CCDGO === code).sort((a, b) => {
+    if (a.año !== b.año) return a.año - b.año;
+    return a.mes - b.mes;
+  });
 }
 """)
 

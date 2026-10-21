@@ -339,6 +339,20 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
   display: flex; flex-direction: column; gap: 16px; overflow-y: auto; z-index: 5;
 }
 
+/* ── Datos Climáticos ───────────────────────────────────────────────────── */
+#s-clima.active { padding: 0; overflow: hidden; }
+#clima-wrap { display: flex; height: calc(100vh - var(--header-h)); width: 100%; }
+#clima-ctrl {
+  width: 220px; min-width: 220px; background: var(--bg-card);
+  border-right: 1px solid var(--border); padding: 16px;
+  display: flex; flex-direction: column; gap: 14px; overflow-y: auto; z-index: 5;
+}
+#clima-map { flex: 1; }
+#clima-chart-panel {
+  height: 250px; background: var(--bg-card); border-top: 1px solid var(--border);
+  padding: 12px; display: flex; gap: 16px;
+}
+
 /* ── Coropléticos ───────────────────────────────────────────────────────── */
 #s-coropletico.active { padding: 0; overflow: hidden; }
 #choro-wrap { display: flex; height: calc(100vh - var(--header-h)); }
@@ -945,6 +959,9 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       <div class="nav-item" data-section="priorizacion">
         <span class="nav-icon">◈</span> <span data-i18n="priorizacion">Priorización</span>
       </div>
+      <div class="nav-item" data-section="clima">
+        <span class="nav-icon">☼</span> <span>Datos Climáticos</span>
+      </div>
       <div class="nav-item" data-section="demografia">
         <span class="nav-icon">👥</span> <span data-i18n="demografia">Demografía</span>
       </div>
@@ -953,6 +970,10 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       </div>
       <div class="nav-item" data-section="hexagonos">
         <span class="nav-icon">⬢</span> <span>Hexágonos</span>
+      </div>
+      <div class="nav-item" data-section="vijes">
+        <span class="nav-icon">⌂</span> <span>Piloto Vijes</span>
+        <span class="nav-tag">tesis</span>
       </div>
       <div class="nav-item" data-section="forecasting">
         <span class="nav-icon">◆</span> <span>IA &amp; ML Forecasting</span>
@@ -1098,6 +1119,14 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
       </div>
     </section>
 
+    <!-- ── PILOTO VIJES · edificaciones Open Buildings (geodata-vijes.js) ── -->
+    <section id="s-vijes" class="section" style="padding: 0; overflow: hidden;">
+      <div id="vijes-wrap">
+        <div id="vijes-sidebar"></div>
+        <div id="vijes-map"></div>
+      </div>
+    </section>
+
     <!-- ── 3. INDICADORES ───────────────────────────────────────────────── -->
     <section id="s-indicadores" class="section">
       <div class="section-intro">
@@ -1144,7 +1173,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
             <div class="map-ctrl-label" style="margin-bottom: 0;">Escala Temporal</div>
             <div class="segmented-control" id="tendencias-escala-ctrl">
               <button class="segmented-btn active" data-val="anual">Anual (Años)</button>
-              <button class="segmented-btn" data-val="semanal">Semanal (Semanas)</button>
+              <button class="segmented-btn" data-val="semanal">Semanal (requiere registros)</button>
             </div>
           </div>
         </div>
@@ -1185,6 +1214,64 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
           </thead>
           <tbody id="prio-tbody"></tbody>
         </table>
+      </div>
+    </section>
+
+    <!-- ── 10. CLIMA (Datos Climáticos) ─────────────────────────────────── -->
+    <section id="s-clima" class="section">
+      <div id="clima-wrap">
+        <div id="clima-ctrl">
+          <div>
+            <div class="map-ctrl-label">Variable Climática</div>
+            <select id="clima-var-select" class="map-select" style="width:100%; background:var(--bg-card2); border:1px solid var(--border2); color:var(--text); padding:7px 9px; border-radius:var(--r-sm); font-family:var(--font); font-size:12px;">
+              <option value="total_precipitation" selected>Precipitación Total Mensual (mm)</option>
+              <option value="mean_max_temperature">Temperatura Máxima Media Mensual (°C)</option>
+              <option value="mean_min_temperature">Temperatura Mínima Media Mensual (°C)</option>
+              <option value="mean_max_humidity">Humedad Máx Media Mensual (%)</option>
+              <option value="mean_min_humidity">Humedad Mín Media Mensual (%)</option>
+            </select>
+          </div>
+          <div>
+            <div class="map-ctrl-label">Año / Year</div>
+            <select id="clima-year-select" class="map-select" style="width:100%; background:var(--bg-card2); border:1px solid var(--border2); color:var(--text); padding:7px 9px; border-radius:var(--r-sm); font-family:var(--font); font-size:12px;"></select>
+          </div>
+          <div>
+            <div class="map-ctrl-label">Mes / Month</div>
+            <select id="clima-month-select" class="map-select" style="width:100%; background:var(--bg-card2); border:1px solid var(--border2); color:var(--text); padding:7px 9px; border-radius:var(--r-sm); font-family:var(--font); font-size:12px;"></select>
+          </div>
+          <div>
+            <label class="cali-row">
+              <input type="checkbox" id="clima-cali-toggle" checked> Incluir Cali
+            </label>
+          </div>
+          <div>
+            <div class="map-ctrl-label">Estadísticas Valle del Cauca</div>
+            <div id="clima-stats" style="display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+          <div style="margin-top:auto">
+            <div class="map-ctrl-label">Fuente</div>
+            <div style="font-size:11px;font-family:var(--mono);color:var(--accent-3)">⬡ IDEAM Colombia</div>
+          </div>
+        </div>
+        <div style="flex:1; display:flex; flex-direction:column; min-width:0; position:relative;">
+          <div id="clima-map" style="flex:1;"></div>
+          <div id="clima-chart-panel">
+            <div style="width:280px; display:flex; flex-direction:column; justify-content:center; gap:8px;">
+              <h4 style="font-size:14px; font-weight:600; color:var(--text);" id="clima-mun-name">Municipio: Cali</h4>
+              <p style="font-size:11px; color:var(--text-2); line-height:1.4;">Haga clic en un municipio del mapa para ver su histórico climático mensual.</p>
+              <div>
+                <select id="clima-mun-chart-var" class="map-select" style="width:100%; background:var(--bg-card2); border:1px solid var(--border2); color:var(--text); padding:5px 7px; border-radius:var(--r-sm); font-size:12px; font-family:var(--font);">
+                  <option value="total_precipitation" selected>Ver Precipitación Histórica</option>
+                  <option value="temperatures">Ver Temperaturas Históricas</option>
+                  <option value="humidity">Ver Humedad Histórica</option>
+                </select>
+              </div>
+            </div>
+            <div style="flex:1; position:relative; min-width:0; height:100%;">
+              <canvas id="clima-chart" style="width:100%; height:100%;"></canvas>
+            </div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1339,7 +1426,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
             </div>
             <div class="reporte-narrative-box">
               <h2 class="reporte-sec-title">Resumen y diagnostico epidemiologico</h2>
-              <p id="reporte-dynamic-text" class="reporte-text">Generando resumen descriptivo del territorio...</p>
+              <p style="font-size:12px">Fuente anual: base local, tabla municipal. Fecha de corte de notificación no informada; 2026 es un año en curso. Edad y sexo: estructura demográfica escalada, no conteos de casos observados por edad. Las comparaciones anuales requieren cortes equivalentes.</p><p id="reporte-dynamic-text" class="reporte-text">Generando resumen descriptivo del territorio...</p>
             </div>
           </div>
 
@@ -1363,7 +1450,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
           </div>
           <div class="reporte-charts-grid">
             <div class="reporte-chart-box tall">
-              <h3 class="reporte-chart-title">Canal endemico semanal estimado</h3>
+              <h3 class="reporte-chart-title">Canal endémico semanal — registros validados</h3>
               <div class="reporte-canvas-wrap large"><canvas id="rep-chart-endemic"></canvas></div>
             </div>
             <div class="reporte-chart-box tall">
@@ -1372,7 +1459,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
             </div>
           </div>
           <div class="reporte-chart-box">
-            <h3 class="reporte-chart-title">Semanas con mayor intensidad estimada</h3>
+            <h3 class="reporte-chart-title">Semanas con mayor intensidad observada</h3>
             <table class="reporte-table" id="rep-annual-table"></table>
           </div>
           <div class="reporte-page-footer"><span>Fuente: SIVIGILA / Proyecciones demograficas integradas</span><span>Pagina 2 de 3</span></div>
@@ -1478,7 +1565,7 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
           <div class="fc-ctrl">
             <label>Intervalo confianza</label>
             <select id="fc-ci">
-              <option>80%</option><option selected>90%</option><option>95%</option>
+              <option>80%</option><option selected>90% (no calibrado)</option><option>95%</option>
             </select>
           </div>
         </div>
@@ -1492,8 +1579,8 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
             <h3>Pronóstico — <span id="fc-detail-name" style="color:var(--text);">Random Forest</span></h3>
             <div class="fc-forecast-wrap"><canvas id="fc-forecast-canvas"></canvas></div>
             <div class="fc-forecast-meta">
-              <span>Train: <b>2019–2024</b></span>
-              <span>Test: <b>2025</b></span>
+              <span>Train: <b>No ejecutado</b></span>
+              <span>Test: <b>No ejecutado</b></span>
               <span>Forecast: <b id="fc-meta-h">12 sem</b></span>
               <span>Última actualización: <b>—</b></span>
             </div>
@@ -1807,8 +1894,10 @@ nav.sidebar-nav { flex: 1; padding: 10px 10px; display: flex; flex-direction: co
 
 <script src="demografia-data.js"></script>
 <script src="geodata-data.js?v=7"></script>
-<script src="geodata-app.js?v=7"></script>
-<script src="geodata-forecasting.js?v=2"></script>
+<script src="geodata-app.js?v=8"></script>
+<script src="geodata-forecasting.js?v=3"></script>
 <script src="geodata-chatbot.js?v=2"></script>
+<script src="vijes-data.js?v=1"></script>
+<script src="geodata-vijes.js?v=4"></script>
 </body>
 </html>

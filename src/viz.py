@@ -12,12 +12,12 @@ plt.rcParams["figure.figsize"] = (12, 6)
 
 def graficar_casos_por_anio(gdf):
     casos = (
-        gdf.groupby("anio", as_index=False)["conteo_dengue"]
+        gdf.groupby("año", as_index=False)["conteo_dengue"]
         .sum()
-        .sort_values("anio")
+        .sort_values("año")
     )
     fig, ax = plt.subplots(figsize=(12, 5))
-    sns.barplot(data=casos, x="anio", y="conteo_dengue", ax=ax)
+    sns.barplot(data=casos, x="año", y="conteo_dengue", ax=ax)
     ax.set_title("Casos de dengue por año")
     ax.set_xlabel("Año")
     ax.set_ylabel("Casos")
@@ -26,7 +26,7 @@ def graficar_casos_por_anio(gdf):
 
 
 def graficar_top_municipios(gdf, anio, n=15):
-    df = gdf[gdf["anio"] == anio].sort_values("conteo_dengue", ascending=False).head(n)
+    df = gdf[gdf["año"] == anio].sort_values("conteo_dengue", ascending=False).head(n)
     fig, ax = plt.subplots(figsize=(12, 7))
     sns.barplot(data=df, y="MPIO_CNMBR", x="conteo_dengue", ax=ax)
     ax.set_title(f"Top {n} municipios — dengue {anio}")
@@ -50,12 +50,12 @@ def graficar_heatmap(pivot, n=20):
 
 def graficar_incidencia_por_anio(gdf):
     inc = (
-        gdf.groupby("anio", as_index=False)["incidencia_dengue"]
+        gdf.groupby("año", as_index=False)["incidencia_dengue"]
         .mean()
-        .sort_values("anio")
+        .sort_values("año")
     )
     fig, ax = plt.subplots(figsize=(12, 5))
-    sns.barplot(data=inc, x="anio", y="incidencia_dengue", ax=ax, color="#e74c3c")
+    sns.barplot(data=inc, x="año", y="incidencia_dengue", ax=ax, color="#e74c3c")
     ax.set_title("Incidencia promedio de dengue por año (x 100 000 hab.)")
     ax.set_xlabel("Año")
     ax.set_ylabel("Incidencia x 100k")
@@ -64,7 +64,7 @@ def graficar_incidencia_por_anio(gdf):
 
 
 def graficar_top_municipios_incidencia(gdf, anio, n=15):
-    df = gdf[gdf["anio"] == anio].sort_values("incidencia_dengue", ascending=False).head(n)
+    df = gdf[gdf["año"] == anio].sort_values("incidencia_dengue", ascending=False).head(n)
     fig, ax = plt.subplots(figsize=(12, 7))
     sns.barplot(data=df, y="MPIO_CNMBR", x="incidencia_dengue", ax=ax, color="#e74c3c")
     ax.set_title(f"Top {n} municipios por incidencia — {anio} (x 100k hab.)")
@@ -75,17 +75,17 @@ def graficar_top_municipios_incidencia(gdf, anio, n=15):
 
 
 def graficar_scatter_poblacion_incidencia(gdf, anio):
-    df = gdf[gdf["anio"] == anio].dropna(subset=["poblacion", "incidencia_dengue"]).copy()
+    df = gdf[gdf["año"] == anio].dropna(subset=["población", "incidencia_dengue"]).copy()
     fig, ax = plt.subplots(figsize=(11, 7))
     sns.scatterplot(
-        data=df, x="poblacion", y="incidencia_dengue",
+        data=df, x="población", y="incidencia_dengue",
         size="conteo_dengue", sizes=(40, 600),
         hue="incidencia_dengue", palette="Reds", legend=False, ax=ax
     )
     for _, row in df.iterrows():
         ax.annotate(
             row["MPIO_CNMBR"],
-            (row["poblacion"], row["incidencia_dengue"]),
+            (row["población"], row["incidencia_dengue"]),
             fontsize=7, alpha=0.75,
             xytext=(4, 3), textcoords="offset points"
         )
@@ -143,7 +143,7 @@ def graficar_forecast_municipio(
     ax.plot(hist["ds"], hist["y"],     color="#2c7bb6", linewidth=1.2, label="Histórico")
     ax.plot(hist["ds"], hist["yhat1"], color="#abd9e9", linewidth=0.8, linestyle="--", alpha=0.7, label="Ajuste modelo")
 
-    ax.plot(futuro["ds"], futuro["yhat1"], color="#d7191c", linewidth=2, label="Pronóstico 52 sem.")
+    ax.plot(futuro["ds"], futuro["yhat1"], color="#d7191c", linewidth=2, label=f"Pronóstico {len(futuro)} sem.")
 
     if col_low and col_high:
         ax.fill_between(

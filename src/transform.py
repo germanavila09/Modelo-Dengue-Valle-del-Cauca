@@ -4,6 +4,9 @@ import pandas as pd
 
 def limpiar_datos(gdf):
     gdf = gdf.copy()
+    for source, target in (("anio", "año"), ("poblacion", "población")):
+        if target not in gdf.columns and source in gdf.columns:
+            gdf = gdf.rename(columns={source: target})
     gdf["MPIO_CNMBR"] = gdf["MPIO_CNMBR"].astype(str).str.upper().str.strip()
     gdf["año"] = pd.to_numeric(gdf["año"], errors="coerce").astype("Int64")
     gdf["conteo_dengue"] = pd.to_numeric(gdf["conteo_dengue"], errors="coerce")

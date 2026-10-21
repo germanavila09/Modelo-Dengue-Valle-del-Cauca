@@ -1,6 +1,7 @@
 # Entorno y credenciales
 .env
 .env.local
+.env.adk
 
 # Python
 __pycache__/
@@ -58,3 +59,6 @@ chatbot/server_out.txt
 check_cols.py
 check_cols2.py
 chatbot/test_debug*.py
+
+# Scratch local (inspeccion/edicion puntual de docx/xlsx, rutas locales)
+scratch/

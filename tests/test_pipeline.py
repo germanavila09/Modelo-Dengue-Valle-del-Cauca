@@ -81,6 +81,24 @@ class TestPipelineExecution:
         assert mocks["graficar_top_municipios_incidencia"].call_args.args[1] == 2020
         assert mocks["graficar_scatter_poblacion_incidencia"].call_args.args[1] == 2020
 
+    def test_ejecutar_without_optional_heat_points(
+        self, sample_gdf, sample_pivot_df, tmp_path, mock_env_vars
+    ):
+        """The aggregate pipeline remains useful when dengue_m is absent."""
+        from src import pipeline
+
+        patches = _mock_pipeline_dependencies(sample_gdf, sample_pivot_df, tmp_path)
+        patches["cargar_puntos_calor"] = patch(
+            "src.pipeline.cargar_puntos_calor",
+            side_effect=pipeline.FuenteDatosNoDisponibleError("public.dengue_m no existe"),
+        )
+        stack, mocks = _enter_all(patches)
+        with stack:
+            result = pipeline.ejecutar(ruta_salida=str(tmp_path))
+
+        assert result["advertencias"] == ["public.dengue_m no existe"]
+        assert mocks["generar_mapa_html"].call_args.kwargs["puntos_df"] is None
+
 
 class TestForecastExecution:
     """Test forecast execution."""

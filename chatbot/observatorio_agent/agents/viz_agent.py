@@ -84,24 +84,32 @@ No preguntes por qué se reutilizó ni expliques el mecanismo técnico al usuari
 # ------------------------------------------------------------------
 # Definición del agente
 # ------------------------------------------------------------------
-viz_agent = Agent(
-    name="viz_agent",
-    model=GEMINI_MODEL,
-    description=(
-        "Especialista en visualizaciones y gráficas del observatorio. "
-        "Activa para cualquier petición visual: gráfica, histograma, imagen, "
-        "serie en gráfico, comparativa visual, scatter plot o artifact gráfico."
-    ),
-    instruction=INSTRUCCIONES,
-    tools=[
-        grafica_casos_por_anio,
-        grafica_top_municipios,
-        grafica_top_municipios_todos_anios,
-        grafica_serie_municipio,
-        grafica_series_municipios,
-        grafica_facet_municipios,
-        grafica_poblacion_vs_incidencia,
-    ],
-    before_tool_callback=before_tool,
-    after_tool_callback=after_tool,
-)
+# build_viz_agent() es una fábrica en vez de un Agent module-level porque
+# ADK no permite que la misma instancia de Agent tenga dos padres (aquí:
+# root_agent y epidemio_viz_parallel la necesitan cada uno por su lado).
+# Cada llamada crea una instancia nueva e independiente.
+def build_viz_agent(name: str = "viz_agent") -> Agent:
+    return Agent(
+        name=name,
+        model=GEMINI_MODEL,
+        description=(
+            "Especialista en visualizaciones y gráficas del observatorio. "
+            "Activa para cualquier petición visual: gráfica, histograma, imagen, "
+            "serie en gráfico, comparativa visual, scatter plot o artifact gráfico."
+        ),
+        instruction=INSTRUCCIONES,
+        tools=[
+            grafica_casos_por_anio,
+            grafica_top_municipios,
+            grafica_top_municipios_todos_anios,
+            grafica_serie_municipio,
+            grafica_series_municipios,
+            grafica_facet_municipios,
+            grafica_poblacion_vs_incidencia,
+        ],
+        before_tool_callback=before_tool,
+        after_tool_callback=after_tool,
+    )
+
+
+viz_agent = build_viz_agent()
